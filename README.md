@@ -13,7 +13,7 @@ Ultimately, my goal is to port 100% of the code from one hardware platform for e
 In your Arduino `.ino` file:
 
 ```cpp
-#include <ungula_lib.h>
+#include <ungula_core.h>
 ```
 
 Then include whatever component you need in your code:

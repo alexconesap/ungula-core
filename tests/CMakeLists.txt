@@ -25,14 +25,14 @@ add_compile_definitions(
     # 
 )
 
-add_executable(test_ungula_lib
+add_executable(test_ungula_core
     test_crc32.cpp
     test_queue.cpp
     test_string_utils.cpp
     test_types.cpp
 )
-target_link_libraries(test_ungula_lib gtest_main)
+target_link_libraries(test_ungula_core gtest_main)
 
 enable_testing()
 include(GoogleTest)
-gtest_discover_tests(test_ungula_lib)
+gtest_discover_tests(test_ungula_core)

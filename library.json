@@ -16,7 +16,7 @@
   "version": "1.2.0",
   "frameworks": ["arduino", "espidf", "*"],
   "platforms": ["espressif32", "espressif8266", "native", "raspberrypi"],
-  "headers": "ungula_lib.h",
+  "headers": "ungula_core.h",
   "build": {
     "libArchive": false
   }
