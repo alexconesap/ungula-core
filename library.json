@@ -1,0 +1,23 @@
+{
+  "name": "UngulaCore",
+  "description": "Ungula Generic Libraries",
+  "keywords": "queue, strings, logger",
+  "license": "Private License",
+  "authors": [
+    {
+      "name": "Alex Conesa",
+      "url": "https://github.com/alexconesap"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alexconesap/ungula-core.git"
+  },
+  "version": "1.2.0",
+  "frameworks": ["arduino", "espidf", "*"],
+  "platforms": ["espressif32", "espressif8266", "native", "raspberrypi"],
+  "headers": "ungula_lib.h",
+  "build": {
+    "libArchive": false
+  }
+}
