@@ -30,7 +30,18 @@ Then include whatever component you need in your code:
 
 ## Time Control (`time/`)
 
-Portable time abstraction. All static methods, no instantiation needed. On ESP32 the millisecond delays go through FreeRTOS (`vTaskDelay`), so other tasks keep running. On other platforms it busy-waits.
+Portable time abstraction. All static methods, no instantiation needed. `time_control.h` is the only header your code ever includes; it dispatches to a platform-specific backend at build time:
+
+```text
+time/
+  time_control.h                       # public API (unchanged)
+  i_time_provider.h                    # pluggable clock source
+  platforms/
+    time_control_esp32.h               # ESP-IDF: FreeRTOS + esp_timer
+    time_control_host.h                # std::chrono + std::thread (tests, STM32 fallback)
+```
+
+Selection happens at the bottom of `time_control.h` via a single `#if defined(ESP_PLATFORM)`. Adding a new platform (STM32, etc.) means dropping one more file into `platforms/` and adding one `#elif` branch — no cross-platform `#ifdef` clutter inside any implementation file.
 
 ### Periodic Loop Without Drift
 
@@ -82,6 +93,64 @@ TimeControl::delayMs(0); // It works but requires a side commentary
 // You can express better your intent by using
 TimeControl::yield();
 ```
+
+### Pluggable time source (`time/i_time_provider.h`)
+
+`TimeControl::millis()` is always the local monotonic clock. `TimeControl::now()` can be routed through a custom source by installing an `ITimeProvider`. Typical uses: an NTP-synced wall-clock, an external RTC chip, a mock clock in tests.
+
+```cpp
+#include "time/i_time_provider.h"
+#include "time/time_control.h"
+
+using ungula::ITimeProvider;
+using ungula::TimeControl;
+
+/// Real-world example: a provider fed by the NTP sink elsewhere in the
+/// firmware. Reports a current epoch time when synchronised, and falls
+/// back to "invalid" until the first successful sync — at which point
+/// TimeControl::now() returns the local monotonic clock on its own.
+class NtpTimeProvider final : public ITimeProvider {
+    public:
+        uint32_t nowMs() const override {
+            return current_epoch_ms_;
+        }
+        bool isValid() const override {
+            return synchronized_;
+        }
+
+        /// Called by the NTP sink whenever a fresh sample lands.
+        void onNtpSample(uint32_t epochMs) {
+            current_epoch_ms_ = epochMs;
+            synchronized_ = true;
+        }
+
+        /// Called when the link drops or the sample goes stale.
+        void invalidate() {
+            synchronized_ = false;
+        }
+
+    private:
+        uint32_t current_epoch_ms_ = 0;
+        bool synchronized_ = false;
+};
+
+NtpTimeProvider g_ntpProvider;
+
+void setup() {
+    TimeControl::setTimeProvider(&g_ntpProvider);
+    // now() returns local millis() until the first NTP sample lands.
+}
+```
+
+Contract:
+
+- The provider must outlive the `setTimeProvider()` call. `TimeControl` stores the pointer, it does not copy.
+- `isValid()` is checked on **every** `now()` call — not cached — so a provider can toggle its validity at runtime without re-registering.
+- When `isValid()` returns false, `TimeControl::now()` falls back to the local monotonic clock. No exception, no "frozen" value.
+- `clearTimeProvider()` removes the provider and restores local-clock behaviour.
+- `micros()` and `nowUs()` are **not** routed through the provider — microsecond-grade external sources are rare enough to not pay for the indirection.
+
+`ITimeProvider` is independent from the `setSyncTime()` / `syncNow()` pair. The sync clock stores a fixed offset to a coordinator's millisecond timestamp; the provider replaces the clock source entirely. Pick one, not both, per deployment.
 
 ## System Control (`system/`)
 
