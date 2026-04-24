@@ -4,8 +4,12 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
+#include <ctime>
 #include "i_time_provider.h"
+#include "time_format.h"
+#include "timezones.h"
 
 /// @brief Platform-abstracted time source.
 ///
@@ -29,10 +33,11 @@ namespace ungula {
 
     class TimeControl final {
         public:
-            using ms_tick_t = uint32_t;
-            using us_tick_t = uint32_t;
-            using time_ms_t = uint32_t;
+            using ms_tick_t = uint32_t;     /// monotonic ms since boot — wraps every ~49 days
+            using us_tick_t = uint32_t;     /// monotonic us since boot — wraps every ~71 minutes
+            using time_ms_t = uint32_t;     /// caller-side ms count (delays, intervals)
             using time_us_t = uint32_t;
+            using epoch_ms_t = uint64_t;    /// wall-clock ms; wide enough for real epoch values
 
             TimeControl() = delete;
             ~TimeControl() = delete;
@@ -56,14 +61,57 @@ namespace ungula {
                 provider_ = nullptr;
             }
 
-            /// Provider-aware current time. Routes through the installed
-            /// ITimeProvider when one is present and reports itself valid;
-            /// otherwise returns the local monotonic `millis()`.
-            static ms_tick_t now() {
+            /// Provider-aware current time, UTC. Routes through the
+            /// installed ITimeProvider when one is present and reports
+            /// itself valid; otherwise returns the local monotonic
+            /// `millis()` widened to 64 bits (so the type still expresses
+            /// "wall-clock-shaped" but the value is monotonic-since-boot
+            /// until a provider supplies real wall time).
+            ///
+            /// Returns UTC by convention. Use `nowLocal()` for the
+            /// configured timezone, or `nowInTz()` for an arbitrary one.
+            static epoch_ms_t now() {
                 if (provider_ != nullptr && provider_->isValid()) {
                     return provider_->nowMs();
                 }
-                return millis();
+                return static_cast<epoch_ms_t>(millis());
+            }
+
+            /// Explicit UTC alias. Same as `now()`.
+            static epoch_ms_t nowUtc() {
+                return now();
+            }
+
+            /// Wall-clock in the timezone configured via
+            /// `setTimezoneOffsetSeconds()`. Equals `now()` until that
+            /// setter has been called.
+            static epoch_ms_t nowLocal() {
+                return now() + (static_cast<int64_t>(timezoneOffsetSeconds_) * 1000);
+            }
+
+            /// Wall-clock in an arbitrary timezone — caller supplies the
+            /// offset in seconds from UTC (e.g. -5 * 3600 for EST). Does
+            /// NOT consult or change the stored offset.
+            static epoch_ms_t nowInTz(int32_t offsetSeconds) {
+                return now() + (static_cast<int64_t>(offsetSeconds) * 1000);
+            }
+
+            /// Set the offset used by `nowLocal()`. Default is 0 (UTC).
+            /// No DST awareness — for that, use the NTP client's
+            /// strftime-based formatters.
+            static void setTimezoneOffsetSeconds(int32_t offsetSeconds) {
+                timezoneOffsetSeconds_ = offsetSeconds;
+            }
+
+            /// Convenience overload — pick a named zone instead of a raw
+            /// offset. Use the entries from `time/timezones.h` so the
+            /// project never hard-codes "what is the offset for Tokyo".
+            static void setTimezone(tz::Timezone zone) {
+                timezoneOffsetSeconds_ = tz::offsetSeconds(zone);
+            }
+
+            static int32_t timezoneOffsetSeconds() {
+                return timezoneOffsetSeconds_;
             }
 
             /// Alias for micros(). No provider hook — microsecond-grade
@@ -71,6 +119,48 @@ namespace ungula {
             /// users, and the hot path matters for this getter.
             static us_tick_t nowUs() {
                 return micros();
+            }
+
+            // ---- Formatting ----
+            //
+            // Print the current time as a human-readable string. Returns 0
+            // when no valid time provider is installed — formatting a
+            // monotonic-since-boot tick as a wall-clock date would just
+            // print "1970-01-01 00:00:NN", which is misleading.
+
+            /// Format current time as "YYYY-MM-DD HH:MM:SS" UTC.
+            /// Buffer must be at least 20 bytes.
+            static size_t formatUtc(char* buf, size_t bufSize) {
+                if (provider_ == nullptr || !provider_->isValid()) {
+                    return 0;
+                }
+                return time_format::formatIso8601(
+                        buf, bufSize, static_cast<time_t>(provider_->nowMs() / 1000), 0);
+            }
+
+            /// Format current time as "YYYY-MM-DD HH:MM:SS" in the
+            /// configured local zone (the offset set via `setTimezone()`
+            /// or `setTimezoneOffsetSeconds()`).
+            static size_t formatLocal(char* buf, size_t bufSize) {
+                if (provider_ == nullptr || !provider_->isValid()) {
+                    return 0;
+                }
+                return time_format::formatIso8601(
+                        buf, bufSize, static_cast<time_t>(provider_->nowMs() / 1000),
+                        timezoneOffsetSeconds_);
+            }
+
+            /// Format current time with a custom strftime spec, in the
+            /// configured local zone. For arbitrary epoch values + custom
+            /// formats, call `time_format::format()` directly.
+            static size_t format(char* buf, size_t bufSize, const char* strftimeFmt) {
+                if (provider_ == nullptr || !provider_->isValid()) {
+                    return 0;
+                }
+                return time_format::format(
+                        buf, bufSize, strftimeFmt,
+                        static_cast<time_t>(provider_->nowMs() / 1000),
+                        timezoneOffsetSeconds_);
             }
 
             // ---- Network-synced clock ----
@@ -162,6 +252,7 @@ namespace ungula {
             // C++17 inline static — storage lives here, no companion .cpp needed.
             inline static ITimeProvider* provider_ = nullptr;
             inline static SyncState sync_ = {0, 0, false};
+            inline static int32_t timezoneOffsetSeconds_ = 0;
     };
 
 }  // namespace ungula

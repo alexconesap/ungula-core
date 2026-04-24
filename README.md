@@ -94,6 +94,94 @@ TimeControl::delayMs(0); // It works but requires a side commentary
 TimeControl::yield();
 ```
 
+### Wall-clock vs monotonic — what each call returns
+
+| Call | Type | Source | Use case |
+| --- | --- | --- | --- |
+| `millis()`, `micros()` | `uint32_t` | local monotonic (wraps in 49 days / 71 minutes) | delays, timeouts, interval math |
+| `now()` / `nowUtc()` | `uint64_t` | `ITimeProvider` if installed and valid, else widened `millis()` | wall-clock UTC for logs, scheduling |
+| `nowLocal()` | `uint64_t` | `now() + setTimezoneOffsetSeconds()` | wall-clock in the configured TZ |
+| `nowInTz(offset_s)` | `uint64_t` | `now() + offset_s * 1000` | one-off arbitrary TZ |
+
+UTC is the default. `setTimezoneOffsetSeconds(int32_t)` (or the named-zone overload `setTimezone(tz::Timezone)`) configures `nowLocal()`; `now()` / `nowUtc()` ignore it. No DST awareness — entries like `PST_NA` and `PDT_NA` are separate zones and the application picks which one is in effect.
+
+#### Named timezones (`time/timezones.h`)
+
+Project code should not have to remember that Tokyo is `9 * 3600`. Pick from the `Timezone` enum and pass it to `setTimezone()`. UTC is the default — call this only if the device should report wall time in some other zone.
+
+```cpp
+#include <time/time_control.h>
+#include <time/timezones.h>
+
+namespace tz = ungula::tz;
+
+TimeControl::setTimezone(tz::Timezone::UTC);     // back to UTC (the default)
+TimeControl::setTimezone(tz::Timezone::JST);     // Tokyo  (+9:00)
+TimeControl::setTimezone(tz::Timezone::IST_IN);  // India  (+5:30)
+```
+
+##### Example — device deployed in Los Angeles
+
+Pacific time observes DST: standard `PST_NA` (-8:00) in winter, daylight `PDT_NA` (-7:00) in summer. The library does not switch automatically — the application picks which one is in effect. Wire the choice to whatever signal makes sense for the project (a button, a config value, an NTP-derived `tm_isdst` flag, a date check):
+
+```cpp
+#include <time/time_control.h>
+#include <time/timezones.h>
+
+namespace tz = ungula::tz;
+
+void applyLosAngelesZone(bool daylightSaving) {
+    TimeControl::setTimezone(daylightSaving ? tz::Timezone::PDT_NA
+                                            : tz::Timezone::PST_NA);
+}
+
+void setup() {
+    // ...NTP / boot...
+    applyLosAngelesZone(/*daylightSaving=*/false);  // winter
+}
+
+void onEnterDaylightSaving() {
+    applyLosAngelesZone(true);
+}
+```
+
+After the call, `TimeControl::nowLocal()` returns LA wall-clock ms; `TimeControl::nowUtc()` is unaffected.
+
+##### Example — device deployed in Barcelona / Spain
+
+Spain follows Central European Time. Winter is `CET` (+1:00), summer is `CEST` (+2:00). Same pattern:
+
+```cpp
+namespace tz = ungula::tz;
+
+void applyBarcelonaZone(bool daylightSaving) {
+    TimeControl::setTimezone(daylightSaving ? tz::Timezone::CEST
+                                            : tz::Timezone::CET);
+}
+
+void setup() {
+    applyBarcelonaZone(/*daylightSaving=*/true);  // summer
+}
+```
+
+##### Multi-zone read (without changing the configured zone)
+
+If the device is configured for one zone but a single read needs another (e.g. a UI tooltip showing "in Barcelona, that's…" while the host project runs in LA), use `nowInTz()` — it does not touch the stored offset:
+
+```cpp
+TimeControl::setTimezone(tz::Timezone::PST_NA);  // device is in LA
+
+const uint64_t bcnNow = TimeControl::nowInTz(
+        tz::offsetSeconds(tz::Timezone::CET));    // one-off Barcelona view
+const uint64_t laNow  = TimeControl::nowLocal(); // still LA — unchanged
+```
+
+##### Inventory
+
+The full mapping lives in `time/timezones.h` as a `constexpr` table — about 40 commonly used abbreviations including UTC/GMT/WET, the European set (CET/CEST/EET/EEST/MSK/BST_UK), the Asia/Pacific set (IST_IN/CST_CN/SGT/JST/KST/AEST/AEDT/ACST/NZST/NZDT), and the Americas (EST/EDT/CST_NA/CDT_NA/MST_NA/MDT_NA/PST_NA/PDT_NA/HST/AKST/AKDT/AST_ATL/BRT/ART). DST-observing zones appear as separate entries (e.g. `PST_NA` and `PDT_NA`) — the application chooses which one is currently active.
+
+`tz::offsetSeconds(zone)` and `tz::abbreviation(zone)` are also exposed for callers that need the values directly without going through `TimeControl`.
+
 ### Pluggable time source (`time/i_time_provider.h`)
 
 `TimeControl::millis()` is always the local monotonic clock. `TimeControl::now()` can be routed through a custom source by installing an `ITimeProvider`. Typical uses: an NTP-synced wall-clock, an external RTC chip, a mock clock in tests.
@@ -111,7 +199,7 @@ using ungula::TimeControl;
 /// TimeControl::now() returns the local monotonic clock on its own.
 class NtpTimeProvider final : public ITimeProvider {
     public:
-        uint32_t nowMs() const override {
+        uint64_t nowMs() const override {
             return current_epoch_ms_;
         }
         bool isValid() const override {
@@ -119,7 +207,7 @@ class NtpTimeProvider final : public ITimeProvider {
         }
 
         /// Called by the NTP sink whenever a fresh sample lands.
-        void onNtpSample(uint32_t epochMs) {
+        void onNtpSample(uint64_t epochMs) {
             current_epoch_ms_ = epochMs;
             synchronized_ = true;
         }
@@ -130,7 +218,7 @@ class NtpTimeProvider final : public ITimeProvider {
         }
 
     private:
-        uint32_t current_epoch_ms_ = 0;
+        uint64_t current_epoch_ms_ = 0;
         bool synchronized_ = false;
 };
 
@@ -151,6 +239,41 @@ Contract:
 - `micros()` and `nowUs()` are **not** routed through the provider — microsecond-grade external sources are rare enough to not pay for the indirection.
 
 `ITimeProvider` is independent from the `setSyncTime()` / `syncNow()` pair. The sync clock stores a fixed offset to a coordinator's millisecond timestamp; the provider replaces the clock source entirely. Pick one, not both, per deployment.
+
+### Formatting (`time/time_format.h`)
+
+Formatting belongs to TimeControl, not to the time *source*. NTP, an RTC chip, or a fake clock all hand back a `time_t` epoch — turning that into "YYYY-MM-DD HH:MM:SS" is the same operation regardless. The pure helper lives in `time/time_format.h` and TimeControl exposes thin wrappers that pass its current state to it.
+
+```cpp
+#include <time/time_control.h>
+#include <time/timezones.h>
+
+namespace tz = ungula::tz;
+
+TimeControl::setTimezone(tz::Timezone::CET);  // device deployed in Barcelona
+
+char ts[24];
+
+// Current wall-clock time formatted as "YYYY-MM-DD HH:MM:SS":
+TimeControl::formatUtc(ts, sizeof(ts));    // "2026-04-23 14:32:11"
+TimeControl::formatLocal(ts, sizeof(ts));  // "2026-04-23 15:32:11" (CET)
+
+// Custom strftime spec, in the configured zone:
+TimeControl::format(ts, sizeof(ts), "%H:%M");  // "15:32"
+```
+
+Contract:
+
+- All three return `0` when no `ITimeProvider` is installed and valid. The buffer is left untouched in that case (no misleading "1970-…" output sneaking into logs).
+- `formatLocal()` and `format()` apply the offset configured via `setTimezone()` / `setTimezoneOffsetSeconds()`. `formatUtc()` ignores it.
+- For arbitrary epoch values (formatting a stored timestamp from somewhere else, not "right now"), call `time_format::format()` / `formatIso8601()` directly — same helpers, but you supply the epoch yourself.
+
+```cpp
+#include <time/time_format.h>
+
+char ts[24];
+ungula::time_format::formatIso8601(ts, sizeof(ts), saved_epoch_seconds, /*offset=*/0);
+```
 
 ## System Control (`system/`)
 

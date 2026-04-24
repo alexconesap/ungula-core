@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024-2026 Alex Conesa
+// See LICENSE file for details.
+
+#pragma once
+
+#include <stdint.h>
+
+namespace ungula {
+
+    /// @brief Pluggable source of absolute wall-clock time in milliseconds.
+    ///
+    /// `TimeControl` falls back to the local monotonic `millis()` when no
+    /// provider is installed. Install one via `TimeControl::setTimeProvider`
+    /// to route `TimeControl::now()` through a different clock — an NTP
+    /// sync, an RTC chip, a mocked source for tests, etc.
+    ///
+    /// Implementations must be cheap (called on every `now()`) and must
+    /// report honestly via `isValid()` whether the returned value is usable.
+    /// When `isValid()` is false, `TimeControl::now()` falls back to the
+    /// local clock.
+    class ITimeProvider {
+        public:
+            virtual ~ITimeProvider() = default;
+
+            /// Current time, in milliseconds. 64-bit so wall-clock epoch-ms
+            /// fits without truncation. The meaning (UTC epoch? local epoch?
+            /// uptime?) is the implementation's choice — by convention
+            /// providers return UTC epoch-ms when they represent a wall
+            /// clock, leaving timezone shifting to TimeControl::nowInTz().
+            virtual uint64_t nowMs() const = 0;
+
+            /// True when `nowMs()` is trustworthy. Returning false makes
+            /// `TimeControl::now()` fall back to the local monotonic clock.
+            virtual bool isValid() const = 0;
+    };
+
+}  // namespace ungula

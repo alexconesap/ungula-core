@@ -31,6 +31,7 @@ add_executable(test_ungula_core
     test_string_utils.cpp
     test_types.cpp
     test_time_control.cpp
+    test_time_format.cpp
 )
 target_link_libraries(test_ungula_core gtest_main)
 
