@@ -11,6 +11,9 @@
 /// the ESP backend close enough that host tests exercise real code paths
 /// rather than a dedicated mock. Reached via the default `#else` branch
 /// of `time_control.h`; no cross-platform guards inside this file.
+///
+/// All time values are int64_t end-to-end — see the comment at the top
+/// of `time_control.h` for the rationale.
 
 #include <chrono>
 #include <thread>
@@ -28,55 +31,51 @@ namespace ungula {
 
     }  // namespace detail
 
-    inline TimeControl::ms_tick_t TimeControl::millis() {
+    inline TimeControl::tick_ms_t TimeControl::millis() {
         using namespace std::chrono;
-        return static_cast<ms_tick_t>(
-                duration_cast<milliseconds>(steady_clock::now() - detail::hostEpoch()).count());
+        return duration_cast<milliseconds>(steady_clock::now() - detail::hostEpoch()).count();
     }
 
-    inline TimeControl::us_tick_t TimeControl::micros() {
+    inline TimeControl::tick_us_t TimeControl::micros() {
         using namespace std::chrono;
-        return static_cast<us_tick_t>(
-                duration_cast<microseconds>(steady_clock::now() - detail::hostEpoch()).count());
+        return duration_cast<microseconds>(steady_clock::now() - detail::hostEpoch()).count();
     }
 
-    inline void TimeControl::delayMs(time_ms_t msv) {
+    inline void TimeControl::delayMs(duration_ms_t msv) {
+        if (msv <= 0) {
+            return;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(msv));
     }
 
-    inline void TimeControl::delayUs(time_us_t usv) {
+    inline void TimeControl::delayUs(duration_us_t usv) {
+        if (usv <= 0) {
+            return;
+        }
         std::this_thread::sleep_for(std::chrono::microseconds(usv));
     }
 
-    inline bool TimeControl::hasReachedMs(ms_tick_t now, ms_tick_t target) {
-        return static_cast<int32_t>(now - target) >= 0;
-    }
-
-    inline bool TimeControl::hasReachedUs(us_tick_t now, us_tick_t target) {
-        return static_cast<int32_t>(now - target) >= 0;
-    }
-
-    inline void TimeControl::delayUntilMs(ms_tick_t& reference, time_ms_t periodMs) {
-        if (periodMs == 0U) {
+    inline void TimeControl::delayUntilMs(tick_ms_t& reference, duration_ms_t periodMs) {
+        if (periodMs <= 0) {
             return;
         }
         // Advance 'reference' by exactly 'periodMs' (drift-free). Sleep
         // the remaining wall time only if we haven't crossed the boundary.
-        const ms_tick_t target = reference + periodMs;
-        const ms_tick_t now = millis();
-        if (!hasReachedMs(now, target)) {
+        const tick_ms_t target = reference + periodMs;
+        const tick_ms_t now = millis();
+        if (now < target) {
             delayMs(target - now);
         }
         reference = target;
     }
 
-    inline void TimeControl::delayUntilUs(us_tick_t& reference, time_us_t periodUs) {
-        if (periodUs == 0U) {
+    inline void TimeControl::delayUntilUs(tick_us_t& reference, duration_us_t periodUs) {
+        if (periodUs <= 0) {
             return;
         }
-        const us_tick_t target = reference + periodUs;
-        const us_tick_t now = micros();
-        if (!hasReachedUs(now, target)) {
+        const tick_us_t target = reference + periodUs;
+        const tick_us_t now = micros();
+        if (now < target) {
             delayUs(target - now);
         }
         reference = target;

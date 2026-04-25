@@ -96,14 +96,35 @@ TimeControl::yield();
 
 ### Wall-clock vs monotonic — what each call returns
 
+All time values are signed `int64_t`. See "Why `int64_t`" below for the rationale.
+
 | Call | Type | Source | Use case |
 | --- | --- | --- | --- |
-| `millis()`, `micros()` | `uint32_t` | local monotonic (wraps in 49 days / 71 minutes) | delays, timeouts, interval math |
-| `now()` / `nowUtc()` | `uint64_t` | `ITimeProvider` if installed and valid, else widened `millis()` | wall-clock UTC for logs, scheduling |
-| `nowLocal()` | `uint64_t` | `now() + setTimezoneOffsetSeconds()` | wall-clock in the configured TZ |
-| `nowInTz(offset_s)` | `uint64_t` | `now() + offset_s * 1000` | one-off arbitrary TZ |
+| `millis()`, `micros()` | `tick_ms_t` / `tick_us_t` | local monotonic, never wraps in practice | delays, timeouts, interval math |
+| `now()` / `nowUtc()` | `epoch_ms_t` | `ITimeProvider` if installed and valid, else `millis()` | wall-clock UTC for logs, scheduling |
+| `nowLocal()` | `epoch_ms_t` | `now() + setTimezoneOffsetSeconds()` | wall-clock in the configured TZ |
+| `nowInTz(offset_s)` | `epoch_ms_t` | `now() + offset_s * 1000` | one-off arbitrary TZ |
 
 UTC is the default. `setTimezoneOffsetSeconds(int32_t)` (or the named-zone overload `setTimezone(tz::Timezone)`) configures `nowLocal()`; `now()` / `nowUtc()` ignore it. No DST awareness — entries like `PST_NA` and `PDT_NA` are separate zones and the application picks which one is in effect.
+
+#### Why `int64_t`
+
+The aliases (`tick_ms_t`, `tick_us_t`, `duration_ms_t`, `duration_us_t`, `epoch_ms_t`) are all `int64_t`. Three reasons:
+
+1. **No wrap.** `uint32_t` ms wraps every 49 days; `uint32_t` µs every 71 minutes. Devices that run continuously hit both. `int64_t` ms gives ~292 million years of headroom — effectively never.
+2. **No silent truncation.** ESP-IDF's `esp_timer_get_time()` already returns `int64_t`. The previous `uint32_t` `micros()` was *wrong* past 71 minutes — values were truncated to the low 32 bits. Now the call is straight pass-through.
+3. **Signed math just works for deadlines.**
+   ```cpp
+   const auto remaining = deadline - TimeControl::millis();
+   if (remaining <= 0) handleOverdue();   // intuitive
+   ```
+   With unsigned, an overdue value becomes a huge positive number and the code "waits" for ~49 days. Signed types eliminate that whole class of bug.
+
+The three aliases exist to make intent visible — same width, different meanings:
+
+- `tick_ms_t` — a moment captured from `millis()`.
+- `duration_ms_t` — an interval (delay length, remaining time).
+- `epoch_ms_t` — a wall-clock instant since the Unix epoch.
 
 #### Named timezones (`time/timezones.h`)
 
@@ -317,10 +338,12 @@ Standard polynomial `0xEDB88320`. No lookup table (saves RAM). See the Preferenc
 
 ### Queue (`util/queue.h`)
 
-Fixed-size circular queue, templated. Does not allocate on the heap.
+Fixed-size circular queue, templated. Does not allocate on the heap. Lives in `ungula::`.
 
 ```cpp
-Queue<int, 10> q;
+#include <util/queue.h>
+
+ungula::Queue<int, 10> q;       // or: using ungula::Queue;
 q.push(42);
 int val;
 q.pop(val);   // val = 42
@@ -333,18 +356,37 @@ q.clear();
 
 ### String Utilities (`util/string_utils.h`)
 
-Namespace `su::`. Various string manipulation helpers: `trim`, `to_lower`, `to_upper`, `startsWith`, `replaceAll`, `tokenizeByDelimiter`, `escapeString`, `countChar`, `num_to_string`.
+Namespace `ungula::str`. Manipulation helpers: `trim`, `to_lower`, `to_upper`, `startsWith`, `replaceAll`, `tokenizeByDelimiter`, `escapeString`, `countChar`, `num_to_string`.
+
+```cpp
+#include <util/string_utils.h>
+
+ungula::string_t s = "  hello  ";
+ungula::str::trim(s);                                  // "hello"
+auto upper = ungula::str::as_upper(s);                 // "HELLO"
+auto parts = ungula::str::tokenizeByDelimiter("a,b,c", ',');
+```
+
+### String types (`util/string_types.h`)
+
+Project-wide aliases live in `ungula::`: `string_t` (`std::string`), `string_view_t` (`std::string_view`), `vector_string_t`, `vector_string_view_t`. Code already inside `namespace ungula { ... }` finds them unqualified; everything else uses `ungula::string_t` etc.
 
 ### Temperature & Math (`util/types.h`)
 
-```cpp
-double f = temperature::celsiusToFahrenheit(100.0);  // 212.0
-double c = temperature::fahrenheitToCelsius(600.0);   // 315.56
-bool ok = temperature::isValidTemperature(300.0);     // true (finite && [-200, 1800))
+Both nested under `ungula::`.
 
-double v = math::clamp(1.5, 0.0, 1.0);  // 1.0
-double t = math::lerp(0.0, 100.0, 0.5); // 50.0
+```cpp
+#include <util/types.h>
+
+double f = ungula::temperature::celsiusToFahrenheit(100.0);  // 212.0
+double c = ungula::temperature::fahrenheitToCelsius(600.0);  // 315.56
+bool ok  = ungula::temperature::isValidTemperature(300.0);   // true (finite && [-200, 1800))
+
+double v = ungula::math::clamp(1.5, 0.0, 1.0);   // 1.0
+double t = ungula::math::lerp(0.0, 100.0, 0.5);  // 50.0
 ```
+
+`util/types.h` also exposes `ungula::stringToInt`, `ungula::intToString`, `ungula::platformMillis`, etc. — all the older free functions, now inside the `ungula::` namespace.
 
 ## Preferences (`preferences/`)
 

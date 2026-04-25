@@ -5,9 +5,9 @@
 // -----------------------------------------------------------------------------
 // File: string_utils.h
 // Description: Utility string functions used across C++ embedded projects.
-// Namespace: 'stru'
+// Namespace: ungula::str
 // Author: Alex Conesa, alexconesap@gmail.com
-// Version: 1.1 - March 3, 2026
+// Version: 2.0 - April 2026 — moved from `stru` to `ungula::str`.
 // C++ version: C++17
 // -----------------------------------------------------------------------------
 
@@ -20,7 +20,8 @@
 
 #include "string_types.h"
 
-namespace stru {
+namespace ungula {
+    namespace str {
 
     /// @brief Skip leading whitespace in a C-style string.
     /// @param pstr Pointer to the C-style string.
@@ -449,4 +450,5 @@ namespace stru {
     //     return (uint32_t(x - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
     // }
 
-}  // namespace stru
+    }  // namespace str
+}  // namespace ungula

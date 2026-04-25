@@ -28,16 +28,36 @@
 /// platform-specific methods, and adding one `#elif` branch below.
 /// No file in this repo needs `#ifdef` branching on platform — each
 /// platform header is pure.
+///
+/// ## Time types — int64_t throughout
+///
+/// All time values are signed 64-bit. Three reasons:
+///   1. Monotonic ticks can never overflow in the lifetime of any
+///      device (~292 million years vs. uint32_t ms's 49 days).
+///   2. ESP-IDF's `esp_timer_get_time()` is already int64_t — anything
+///      narrower drops bits silently. The previous uint32_t micros()
+///      truncated past 71 minutes.
+///   3. Signed math means deadlines work intuitively:
+///        `duration_ms_t remaining = deadline - now;`
+///      `remaining < 0` ↔ overdue. With unsigned, an overdue value
+///      becomes a huge positive number and "wait until deadline" sleeps
+///      for ~292M years.
+///
+/// Three separate aliases by intent — no more vague `time_ms_t`:
+///   - `tick_ms_t` / `tick_us_t` — a moment captured from millis()/micros()
+///   - `duration_ms_t` / `duration_us_t` — an interval (delay length, etc.)
+///   - `epoch_ms_t` — a wall-clock instant since the Unix epoch
+/// All are `int64_t`; the names exist to make intent visible at call sites.
 
 namespace ungula {
 
     class TimeControl final {
         public:
-            using ms_tick_t = uint32_t;     /// monotonic ms since boot — wraps every ~49 days
-            using us_tick_t = uint32_t;     /// monotonic us since boot — wraps every ~71 minutes
-            using time_ms_t = uint32_t;     /// caller-side ms count (delays, intervals)
-            using time_us_t = uint32_t;
-            using epoch_ms_t = uint64_t;    /// wall-clock ms; wide enough for real epoch values
+            using tick_ms_t = int64_t;       /// monotonic ms since boot
+            using tick_us_t = int64_t;       /// monotonic us since boot
+            using duration_ms_t = int64_t;   /// delays, intervals, remaining time
+            using duration_us_t = int64_t;
+            using epoch_ms_t = int64_t;      /// Unix epoch ms (signed for delta arithmetic)
 
             TimeControl() = delete;
             ~TimeControl() = delete;
@@ -46,11 +66,12 @@ namespace ungula {
 
             // ---- Local clock (platform-provided) ----
 
-            /// Monotonic millisecond tick. Wraps around every ~49 days.
-            static ms_tick_t millis();
+            /// Monotonic millisecond tick since boot. Effectively never wraps.
+            static tick_ms_t millis();
 
-            /// Monotonic microsecond tick. Wraps around every ~71 minutes.
-            static us_tick_t micros();
+            /// Monotonic microsecond tick since boot. Effectively never wraps
+            /// (matches ESP-IDF's native `esp_timer_get_time()` width).
+            static tick_us_t micros();
 
             // ---- Time provider hook ----
 
@@ -64,9 +85,8 @@ namespace ungula {
             /// Provider-aware current time, UTC. Routes through the
             /// installed ITimeProvider when one is present and reports
             /// itself valid; otherwise returns the local monotonic
-            /// `millis()` widened to 64 bits (so the type still expresses
-            /// "wall-clock-shaped" but the value is monotonic-since-boot
-            /// until a provider supplies real wall time).
+            /// `millis()` (which is monotonic-since-boot, NOT a real
+            /// wall-clock value, until a provider is installed).
             ///
             /// Returns UTC by convention. Use `nowLocal()` for the
             /// configured timezone, or `nowInTz()` for an arbitrary one.
@@ -74,7 +94,7 @@ namespace ungula {
                 if (provider_ != nullptr && provider_->isValid()) {
                     return provider_->nowMs();
                 }
-                return static_cast<epoch_ms_t>(millis());
+                return millis();
             }
 
             /// Explicit UTC alias. Same as `now()`.
@@ -117,7 +137,7 @@ namespace ungula {
             /// Alias for micros(). No provider hook — microsecond-grade
             /// external sources are rare enough that it would pay zero
             /// users, and the hot path matters for this getter.
-            static us_tick_t nowUs() {
+            static tick_us_t nowUs() {
                 return micros();
             }
 
@@ -168,25 +188,25 @@ namespace ungula {
             // setSyncTime() is called once per sync event (cheap: one subtraction).
             // syncNow() is called on every read (cheap: one addition).
 
-            static void setSyncTime(ms_tick_t remoteMs) {
-                sync_.offsetMs = static_cast<int32_t>(remoteMs - millis());
+            static void setSyncTime(tick_ms_t remoteMs) {
+                sync_.offsetMs = remoteMs - millis();
                 sync_.active = true;
             }
 
-            static void setSyncTimeUs(us_tick_t remoteUs) {
+            static void setSyncTimeUs(tick_us_t remoteUs) {
                 sync_.offsetUs = remoteUs - micros();
                 sync_.active = true;
             }
 
-            static ms_tick_t syncNow() {
-                return millis() + static_cast<ms_tick_t>(sync_.offsetMs);
+            static tick_ms_t syncNow() {
+                return millis() + sync_.offsetMs;
             }
 
-            static us_tick_t syncNowUs() {
+            static tick_us_t syncNowUs() {
                 return micros() + sync_.offsetUs;
             }
 
-            static int32_t syncOffset() {
+            static int64_t syncOffset() {
                 return sync_.offsetMs;
             }
 
@@ -208,12 +228,12 @@ namespace ungula {
 
             /// Alias for delayMs(). Kept for source-compat with callers
             /// that used `delay()` originally.
-            static void delay(time_ms_t msv) {
+            static void delay(duration_ms_t msv) {
                 delayMs(msv);
             }
 
-            static void delayMs(time_ms_t msv);
-            static void delayUs(time_us_t usv);
+            static void delayMs(duration_ms_t msv);
+            static void delayUs(duration_us_t usv);
 
             /// Wait until the next periodic boundary, then advance
             /// 'reference' by periodMs. Drift-free: 'reference' is bumped
@@ -228,10 +248,10 @@ namespace ungula {
             ///       TimeControl::delayUntilMs(ref, 50);
             ///   }
             /// ```
-            static void delayUntilMs(ms_tick_t& reference, time_ms_t periodMs);
+            static void delayUntilMs(tick_ms_t& reference, duration_ms_t periodMs);
 
             /// Same idea in microseconds. Best-effort — relies on busy-wait.
-            static void delayUntilUs(us_tick_t& reference, time_us_t periodUs);
+            static void delayUntilUs(tick_us_t& reference, duration_us_t periodUs);
 
             /// Cooperative yield. Prefer this over `delayMs(0)` for intent.
             static void yield() {
@@ -239,12 +259,18 @@ namespace ungula {
             }
 
         private:
-            static bool hasReachedMs(ms_tick_t now, ms_tick_t target);
-            static bool hasReachedUs(us_tick_t now, us_tick_t target);
+            // Direct signed comparison — no clever unsigned-overflow trick
+            // is needed once we're on int64_t. `now >= target` IS the test.
+            static bool hasReachedMs(tick_ms_t now, tick_ms_t target) {
+                return now >= target;
+            }
+            static bool hasReachedUs(tick_us_t now, tick_us_t target) {
+                return now >= target;
+            }
 
             /// Sync offset between local and coordinator clocks.
             struct SyncState {
-                    int32_t offsetMs;
+                    int64_t offsetMs;
                     int64_t offsetUs;
                     bool active;
             };
@@ -259,9 +285,9 @@ namespace ungula {
 
 // ---- Platform dispatch ----
 // Each platform header contains inline definitions of the
-// platform-specific methods (millis, micros, delay*, delayUntil*,
-// hasReached*). No cross-platform #ifdefs inside those files — each
-// is pure for its target.
+// platform-specific methods (millis, micros, delay*, delayUntil*).
+// No cross-platform #ifdefs inside those files — each is pure for
+// its target.
 
 #if defined(ESP_PLATFORM)
 #include "platforms/time_control_esp32.h"

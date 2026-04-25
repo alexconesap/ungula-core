@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <util/queue.h>
 
+using ungula::Queue;
+
 TEST(Queue, EmptyOnCreation) {
     Queue<int, 5> q;
     EXPECT_TRUE(q.isEmpty());

@@ -18,6 +18,8 @@
 #include <cstring>
 #include <string>
 
+namespace ungula {
+
 // Time functions
 inline uint32_t platformMillis() {
     using namespace std::chrono;
@@ -211,3 +213,5 @@ template <typename EnumT>
 inline EnumT fromUint8(uint8_t val) {
     return static_cast<EnumT>(val);
 }
+
+}  // namespace ungula

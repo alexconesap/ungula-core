@@ -24,20 +24,20 @@ namespace {
     // branch of TimeControl::now()'s provider routing.
     class ScriptedProvider final : public ITimeProvider {
         public:
-            uint64_t nowMs() const override {
+            int64_t nowMs() const override {
                 return scripted_now_;
             }
             bool isValid() const override {
                 return scripted_valid_;
             }
 
-            void set(uint64_t now, bool valid) {
+            void set(int64_t now, bool valid) {
                 scripted_now_ = now;
                 scripted_valid_ = valid;
             }
 
         private:
-            uint64_t scripted_now_ = 0;
+            int64_t scripted_now_ = 0;
             bool scripted_valid_ = false;
     };
 
@@ -93,48 +93,48 @@ namespace {
         ScriptedProvider p;
         // Real epoch-ms value — well beyond uint32_t. Verifies the wider
         // 64-bit path actually carries the full value.
-        constexpr uint64_t kEpochMs = 1'763'808'000'000ULL;
+        constexpr int64_t kEpochMs = 1'763'808'000'000LL;
         p.set(kEpochMs, /*valid=*/true);
         TimeControl::setTimeProvider(&p);
 
         EXPECT_EQ(TimeControl::now(), kEpochMs);
-        EXPECT_GT(TimeControl::now(), 0xFFFFFFFFULL);  // proves no truncation
+        EXPECT_GT(TimeControl::now(), 0xFFFFFFFFLL);  // proves no truncation
     }
 
     TEST_F(TimeControlTest, ProviderReportedInvalidFallsBackToLocal) {
         ScriptedProvider p;
-        p.set(1'763'808'000'000ULL, /*valid=*/false);
+        p.set(1'763'808'000'000LL, /*valid=*/false);
         TimeControl::setTimeProvider(&p);
 
         // Provider says "don't trust me" → now() must fall back to the
         // local monotonic clock, which is tiny compared to the epoch value
         // the provider reports.
-        EXPECT_LT(TimeControl::now(), 1'000'000'000ULL);
+        EXPECT_LT(TimeControl::now(), 1'000'000'000LL);
     }
 
     TEST_F(TimeControlTest, ClearTimeProviderRestoresLocalClock) {
         ScriptedProvider p;
-        p.set(555'000ULL, /*valid=*/true);
+        p.set(555'000LL, /*valid=*/true);
         TimeControl::setTimeProvider(&p);
-        EXPECT_EQ(TimeControl::now(), 555'000ULL);
+        EXPECT_EQ(TimeControl::now(), 555'000LL);
 
         TimeControl::clearTimeProvider();
-        EXPECT_LT(TimeControl::now(), 555'000ULL);
+        EXPECT_LT(TimeControl::now(), 555'000LL);
     }
 
     TEST_F(TimeControlTest, ProviderValidityIsCheckedOnEveryCall) {
         // A provider that toggles between valid/invalid mid-test — now()
         // must re-check isValid() on every call, not cache it.
         ScriptedProvider p;
-        p.set(100ULL, true);
+        p.set(100LL, true);
         TimeControl::setTimeProvider(&p);
-        EXPECT_EQ(TimeControl::now(), 100ULL);
+        EXPECT_EQ(TimeControl::now(), 100LL);
 
-        p.set(200ULL, false);
-        EXPECT_LT(TimeControl::now(), 200ULL);  // fell back to local.
+        p.set(200LL, false);
+        EXPECT_LT(TimeControl::now(), 200LL);  // fell back to local.
 
-        p.set(300ULL, true);
-        EXPECT_EQ(TimeControl::now(), 300ULL);
+        p.set(300LL, true);
+        EXPECT_EQ(TimeControl::now(), 300LL);
     }
 
     // ---- Timezone ----
@@ -147,7 +147,7 @@ namespace {
 
     TEST_F(TimeControlTest, NowLocalAppliesStoredOffset) {
         ScriptedProvider p;
-        constexpr uint64_t kEpochMs = 1'700'000'000'000ULL;
+        constexpr int64_t kEpochMs = 1'700'000'000'000LL;
         p.set(kEpochMs, true);
         TimeControl::setTimeProvider(&p);
 
@@ -162,7 +162,7 @@ namespace {
 
     TEST_F(TimeControlTest, NowInTzIsIndependentOfStoredOffset) {
         ScriptedProvider p;
-        constexpr uint64_t kEpochMs = 1'700'000'000'000ULL;
+        constexpr int64_t kEpochMs = 1'700'000'000'000LL;
         p.set(kEpochMs, true);
         TimeControl::setTimeProvider(&p);
 
@@ -192,7 +192,7 @@ namespace {
 
     TEST_F(TimeControlTest, SetTimezoneNamedFlowsThroughNowLocal) {
         ScriptedProvider p;
-        constexpr uint64_t kEpochMs = 1'700'000'000'000ULL;
+        constexpr int64_t kEpochMs = 1'700'000'000'000LL;
         p.set(kEpochMs, true);
         TimeControl::setTimeProvider(&p);
 
@@ -315,7 +315,7 @@ namespace {
         // that nowLocal() returns the expected wall time for both halves of
         // the year (PST and PDT).
         ScriptedProvider clock;
-        constexpr uint64_t kUtcMs = 1'700'000'000'000ULL;  // 2023-11-14 22:13:20 UTC
+        constexpr int64_t kUtcMs = 1'700'000'000'000LL;  // 2023-11-14 22:13:20 UTC
         clock.set(kUtcMs, true);
         TimeControl::setTimeProvider(&clock);
 
@@ -331,7 +331,7 @@ namespace {
 
     TEST_F(TimeControlTest, NowLocalForBarcelona) {
         ScriptedProvider clock;
-        constexpr uint64_t kUtcMs = 1'700'000'000'000ULL;
+        constexpr int64_t kUtcMs = 1'700'000'000'000LL;
         clock.set(kUtcMs, true);
         TimeControl::setTimeProvider(&clock);
 
@@ -348,18 +348,18 @@ namespace {
         // Switching between LA and Barcelona at runtime must take effect on
         // the very next nowLocal() call — no caching, no init-only state.
         ScriptedProvider clock;
-        constexpr uint64_t kUtcMs = 1'700'000'000'000ULL;
+        constexpr int64_t kUtcMs = 1'700'000'000'000LL;
         clock.set(kUtcMs, true);
         TimeControl::setTimeProvider(&clock);
 
         TimeControl::setTimezone(tz::Timezone::PST_NA);  // -8:00
-        const uint64_t la = TimeControl::nowLocal();
+        const int64_t la = TimeControl::nowLocal();
 
         TimeControl::setTimezone(tz::Timezone::CET);     // +1:00
-        const uint64_t bcn = TimeControl::nowLocal();
+        const int64_t bcn = TimeControl::nowLocal();
 
         // 9-hour delta between LA and Barcelona in winter.
-        EXPECT_EQ(bcn - la, static_cast<uint64_t>(9LL * 3600 * 1000));
+        EXPECT_EQ(bcn - la, 9LL * 3600 * 1000);
     }
 
     TEST_F(TimeControlTest, NowInTzIgnoresStoredZoneInLaToBcnFlip) {
@@ -368,7 +368,7 @@ namespace {
         // for code that does e.g. "render Barcelona time in a UI tooltip
         // while the device is configured for Los Angeles".
         ScriptedProvider clock;
-        constexpr uint64_t kUtcMs = 1'700'000'000'000ULL;
+        constexpr int64_t kUtcMs = 1'700'000'000'000LL;
         clock.set(kUtcMs, true);
         TimeControl::setTimeProvider(&clock);
 
@@ -397,7 +397,7 @@ namespace {
     TEST_F(TimeControlTest, FormatUtcUsesProviderEpoch) {
         ScriptedProvider clock;
         // 1700000000 sec = 2023-11-14 22:13:20 UTC. As ms: ×1000.
-        clock.set(1'700'000'000'000ULL, true);
+        clock.set(1'700'000'000'000LL, true);
         TimeControl::setTimeProvider(&clock);
 
         char buf[32] = {};
@@ -408,7 +408,7 @@ namespace {
 
     TEST_F(TimeControlTest, FormatLocalAppliesStoredOffset) {
         ScriptedProvider clock;
-        clock.set(1'700'000'000'000ULL, true);
+        clock.set(1'700'000'000'000LL, true);
         TimeControl::setTimeProvider(&clock);
 
         TimeControl::setTimezone(tz::Timezone::PST_NA);  // -8:00
@@ -423,7 +423,7 @@ namespace {
 
     TEST_F(TimeControlTest, FormatCustomSpecHonoursStoredOffset) {
         ScriptedProvider clock;
-        clock.set(1'700'000'000'000ULL, true);
+        clock.set(1'700'000'000'000LL, true);
         TimeControl::setTimeProvider(&clock);
         TimeControl::setTimezone(tz::Timezone::JST);  // +9:00
 
@@ -434,12 +434,12 @@ namespace {
 
     TEST_F(TimeControlTest, NowUtcAndNowAreEquivalent) {
         ScriptedProvider p;
-        p.set(1'234'567'890ULL, true);
+        p.set(1'234'567'890LL, true);
         TimeControl::setTimeProvider(&p);
         TimeControl::setTimezoneOffsetSeconds(7 * 3600);  // would shift if used
 
         // now() / nowUtc() must IGNORE the stored offset.
-        EXPECT_EQ(TimeControl::now(), 1'234'567'890ULL);
+        EXPECT_EQ(TimeControl::now(), 1'234'567'890LL);
         EXPECT_EQ(TimeControl::nowUtc(), TimeControl::now());
     }
 
@@ -457,7 +457,7 @@ namespace {
         // Inject a coordinator's ms. syncNow() should land near that value
         // for a short window after injection (before too much local time
         // has elapsed).
-        const uint32_t coordinatorMs = 42'000'000U;
+        const int64_t coordinatorMs = 42'000'000LL;
         TimeControl::setSyncTime(coordinatorMs);
         EXPECT_TRUE(TimeControl::isSynced());
 
@@ -483,7 +483,7 @@ namespace {
         TimeControl::delayUntilMs(ref, 5);
         // delayUntilMs must bump 'reference' by exactly the period, not
         // by however long the delay actually took. Drift-free by design.
-        EXPECT_EQ(ref - refBefore, 5U);
+        EXPECT_EQ(ref - refBefore, 5LL);
     }
 
     TEST_F(TimeControlTest, DelayUntilMsZeroPeriodIsNoOp) {

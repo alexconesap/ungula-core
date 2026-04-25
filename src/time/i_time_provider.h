@@ -23,12 +23,17 @@ namespace ungula {
         public:
             virtual ~ITimeProvider() = default;
 
-            /// Current time, in milliseconds. 64-bit so wall-clock epoch-ms
-            /// fits without truncation. The meaning (UTC epoch? local epoch?
-            /// uptime?) is the implementation's choice — by convention
-            /// providers return UTC epoch-ms when they represent a wall
-            /// clock, leaving timezone shifting to TimeControl::nowInTz().
-            virtual uint64_t nowMs() const = 0;
+            /// Current time, in milliseconds. Signed 64-bit:
+            ///   - 64-bit so wall-clock epoch-ms fits without truncation.
+            ///   - Signed so callers can subtract two values and detect
+            ///     "in the future" (negative) cleanly. ESP-IDF and POSIX
+            ///     `time_t` are both signed for the same reason.
+            ///
+            /// The meaning (UTC epoch? local epoch? uptime?) is the
+            /// implementation's choice — by convention providers return
+            /// UTC epoch-ms when they represent a wall clock, leaving
+            /// timezone shifting to TimeControl::nowInTz().
+            virtual int64_t nowMs() const = 0;
 
             /// True when `nowMs()` is trustworthy. Returning false makes
             /// `TimeControl::now()` fall back to the local monotonic clock.

@@ -2,6 +2,9 @@
 #include <util/types.h>
 #include <cmath>
 
+// Test code is allowed `using namespace`; library code is not.
+using namespace ungula;
+
 // --- Temperature conversion ---
 
 TEST(Temperature, CelsiusToFahrenheit) {
