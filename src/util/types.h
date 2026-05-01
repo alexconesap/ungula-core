@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
@@ -17,19 +18,22 @@ namespace ungula {
     namespace temp {
 
         constexpr double FAHRENHEIT_FREEZING_POINT = 32.0;
-        constexpr double FAHRENHEIT_TO_CELSIUS_SCALE = 5.0 / 9.0;
-        constexpr double CELSIUS_TO_FAHRENHEIT_SCALE = 9.0 / 5.0;
+        constexpr double FAHRENHEIT_TO_CELSIUS_SCALE = 5.0 / 9.0; // 0.5555555555555556
+        constexpr double CELSIUS_TO_FAHRENHEIT_SCALE = 9.0 / 5.0; // 1.8
+
+        constexpr double MIN_CELSIUS = -200.0;
+        constexpr double MAX_CELSIUS = 1800.0;
 
         template <typename T>
-        constexpr T celsiusToFahrenheit(T c) noexcept {
+        constexpr T celsiusToFahrenheit(T celsius) noexcept {
             static_assert(std::is_floating_point_v<T>, "T must be float or double");
-            return (c * static_cast<T>(9.0 / 5.0)) + static_cast<T>(32.0);
+            return (celsius * static_cast<T>(CELSIUS_TO_FAHRENHEIT_SCALE)) + static_cast<T>(FAHRENHEIT_FREEZING_POINT);
         }
 
         template <typename T>
-        constexpr T fahrenheitToCelsius(T f) noexcept {
+        constexpr T fahrenheitToCelsius(T fahrenheit) noexcept {
             static_assert(std::is_floating_point_v<T>, "T must be float or double");
-            return (f - static_cast<T>(32.0)) * static_cast<T>(5.0 / 9.0);
+            return (fahrenheit - static_cast<T>(FAHRENHEIT_FREEZING_POINT)) * static_cast<T>(FAHRENHEIT_TO_CELSIUS_SCALE);
         }
 
         /// @brief Check if a Celsius temperature is within a reasonable range and is finite. Use to
@@ -41,8 +45,9 @@ namespace ungula {
         constexpr bool isValidTemperature(T tempC) noexcept {
             static_assert(std::is_floating_point_v<T>, "T must be float or double");
 
-            return std::isfinite(tempC) && tempC > static_cast<T>(-200.0) &&
-                   tempC < static_cast<T>(1800.0);
+            return std::isfinite(tempC) 
+                    && tempC > static_cast<T>(temp::MIN_CELSIUS) 
+                    && tempC < static_cast<T>(temp::MAX_CELSIUS);
         }
 
         /// @brief Pack a Celsius temperature for wire transmission.
@@ -84,7 +89,11 @@ namespace ungula {
         /// @return The clamped value, guaranteed to be between minVal and maxVal inclusive.
         template <typename T>
         constexpr T clamp(T value, T minVal, T maxVal) noexcept {
-            return value < minVal ? minVal : (maxVal < value ? maxVal : value);
+            #if defined(__cpp_lib_clamp) && __cpp_lib_clamp >= 201603L
+                return std::clamp(value, minVal, maxVal);
+            #else
+                return value < minVal ? minVal : (maxVal < value ? maxVal : value);
+            #endif
         }
 
         /// @brief Clamp a value to a specified range, modifying it in place. Use when you want to
@@ -113,14 +122,19 @@ namespace ungula {
         /// [0.0, 1.0].
         /// @tparam T The type of the values to interpolate. Must support arithmetic operations and
         /// be compatible with the clamp01 function.
-        /// @param a The start value corresponding to t=0.0.
-        /// @param b The end value corresponding to t=1.0.
-        /// @param t The interpolation factor, typically in the range [0.0, 1.0]. Values outside
+        /// @param start The start value corresponding to factor01=0.0.
+        /// @param end The end value corresponding to factor01=1.0.
+        /// @param factor01 The interpolation factor, typically in the range [0.0, 1.0]. Values outside
         /// this range will be clamped to it.
-        /// @return The interpolated value, calculated as a + (b - a) * clamp01(t).
+        /// @return The interpolated value, calculated as start + (end - start) * clamp01(factor01).
         template <typename T>
-        constexpr T lerp(T a, T b, T t) noexcept {
-            return a + (b - a) * clamp01(t);
+        constexpr T lerp(T start, T end, T factor01) noexcept {
+            const T clamped = clamp01(factor01);
+            #if defined(__cpp_lib_interpolate) && __cpp_lib_interpolate >= 201902L
+                return std::lerp(start, end, clamped);
+            #else
+                return start + ((end - start) * clamped);
+            #endif
         }
 
     }  // namespace math
