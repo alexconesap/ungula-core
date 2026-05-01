@@ -378,9 +378,12 @@ Both nested under `ungula::`.
 ```cpp
 #include <util/types.h>
 
-double f = ungula::temp::celsiusToFahrenheit(100.0);  // 212.0
-double c = ungula::temp::fahrenheitToCelsius(600.0);  // 315.56
-bool ok  = ungula::temp::isValidTemperature(300.0);   // true (finite && [-200, 1800))
+double f = ungula::temperature::celsiusToFahrenheit(100.0);  // 212.0
+double c = ungula::temperature::fahrenheitToCelsius(600.0);  // 315.56
+bool ok  = ungula::temperature::isValidTemperature(300.0);   // true (finite && [-200, 1800))
+
+int16_t wire = ungula::temp::packCelsius(25.5f);   // 255 — wire format
+float recovered = ungula::temp::unpackCelsius(wire); // 25.5f
 
 double v = ungula::math::clamp(1.5, 0.0, 1.0);   // 1.0
 double t = ungula::math::lerp(0.0, 100.0, 0.5);  // 50.0
@@ -390,9 +393,13 @@ double x = 1.5;
 ungula::math::clamp_v(x, 0.0, 1.0);  // x == 1.0
 ```
 
-`clamp_v / clampf_v / clampi_v` modify the first argument in place.
-`clamp / clampf / clampi` return the clamped value without touching the
-input. `clamp01 / clamp01f` and `lerp / lerpf` are also available.
+`packCelsius` / `unpackCelsius` encode temperature as `int16_t` (celsius
+× 10) for efficient wire transmission. `unpackCelsius` restores the
+float. Both handle negative values correctly.
+
+`clamp_v` modify the first argument in place.
+`clamp` return the clamped value without touching the
+input. `clamp01` and `lerp` are also available.
 
 ## Preferences (`preferences/`)
 

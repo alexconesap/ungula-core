@@ -355,10 +355,15 @@ producer/consumer pair.
 
 ### `ungula::` math/temp helpers (in `util/types.h`)
 
-- `math::clamp / clampf / clampi` — return clamped value, no side effects.
-- `math::clamp_v / clampf_v / clampi_v` — modify the first argument by
+- `math::clamp` — return clamped value, no side effects.
+- `math::clamp_v` — modify the first argument by
   reference.
-- `math::clamp01 / clamp01f / lerp / lerpf`.
+- `math::clamp01 / lerp`.
+- `temp::packCelsius(float celsius) -> int16_t` — multiplies by 10 and
+  rounds for wire transmission (0.1 °C resolution). Pairs with
+  `unpackCelsius`.
+- `temp::unpackCelsius(int16_t packed) -> float` — divides by 10 to
+  restore Celsius from a packed wire value.
 - `temp::celsiusToFahrenheit / fahrenheitToCelsius` (double and
   float variants), `isValidTemperature(C)` returns false for non-finite
   or values outside `(-200°C, 1800°C)`.
