@@ -14,7 +14,7 @@ namespace {
 
     // Anchor instant used across the suite. Pure arithmetic via gmtime_r,
     // so the expected strings are stable across hosts and ESP32 builds.
-    constexpr time_t kAnchorEpoch = 1700000000;       // 2023-11-14 22:13:20 UTC
+    constexpr time_t kAnchorEpoch = 1700000000;  // 2023-11-14 22:13:20 UTC
     constexpr const char* kAnchorUtcStr = "2023-11-14 22:13:20";
 
     // ---- Pure formatter ----

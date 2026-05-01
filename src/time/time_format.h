@@ -44,7 +44,7 @@ namespace ungula {
                 return 0;
             }
             const time_t shifted = epochSeconds + offsetSeconds;
-            struct tm timeinfo {};
+            struct tm timeinfo{};
             gmtime_r(&shifted, &timeinfo);
             return strftime(buf, bufSize, strftimeFmt, &timeinfo);
         }

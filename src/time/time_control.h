@@ -53,11 +53,11 @@ namespace ungula {
 
     class TimeControl final {
         public:
-            using tick_ms_t = int64_t;       /// monotonic ms since boot
-            using tick_us_t = int64_t;       /// monotonic us since boot
-            using duration_ms_t = int64_t;   /// delays, intervals, remaining time
+            using tick_ms_t = int64_t;      /// monotonic ms since boot
+            using tick_us_t = int64_t;      /// monotonic us since boot
+            using duration_ms_t = int64_t;  /// delays, intervals, remaining time
             using duration_us_t = int64_t;
-            using epoch_ms_t = int64_t;      /// Unix epoch ms (signed for delta arithmetic)
+            using epoch_ms_t = int64_t;  /// Unix epoch ms (signed for delta arithmetic)
 
             TimeControl() = delete;
             ~TimeControl() = delete;
@@ -165,9 +165,9 @@ namespace ungula {
                 if (provider_ == nullptr || !provider_->isValid()) {
                     return 0;
                 }
-                return time_format::formatIso8601(
-                        buf, bufSize, static_cast<time_t>(provider_->nowMs() / 1000),
-                        timezoneOffsetSeconds_);
+                return time_format::formatIso8601(buf, bufSize,
+                                                  static_cast<time_t>(provider_->nowMs() / 1000),
+                                                  timezoneOffsetSeconds_);
             }
 
             /// Format current time with a custom strftime spec, in the
@@ -177,10 +177,9 @@ namespace ungula {
                 if (provider_ == nullptr || !provider_->isValid()) {
                     return 0;
                 }
-                return time_format::format(
-                        buf, bufSize, strftimeFmt,
-                        static_cast<time_t>(provider_->nowMs() / 1000),
-                        timezoneOffsetSeconds_);
+                return time_format::format(buf, bufSize, strftimeFmt,
+                                           static_cast<time_t>(provider_->nowMs() / 1000),
+                                           timezoneOffsetSeconds_);
             }
 
             // ---- Network-synced clock ----

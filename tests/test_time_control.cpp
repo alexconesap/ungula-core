@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <time/time_control.h>
 #include <time/i_time_provider.h>
+#include <time/time_control.h>
 #include <time/timezones.h>
 
 #include <cstdint>
@@ -170,8 +170,7 @@ namespace {
 
         // Asking for JST (+9h) must NOT consult the stored EST offset.
         constexpr int32_t kJstOffsetS = 9 * 3600;
-        EXPECT_EQ(TimeControl::nowInTz(kJstOffsetS),
-                  kEpochMs + (kJstOffsetS * 1000LL));
+        EXPECT_EQ(TimeControl::nowInTz(kJstOffsetS), kEpochMs + (kJstOffsetS * 1000LL));
 
         // Stored offset still EST after the nowInTz() call.
         EXPECT_EQ(TimeControl::timezoneOffsetSeconds(), -5 * 3600);
@@ -225,22 +224,48 @@ namespace {
     // ever drift apart.
     constexpr tz::Timezone kAllZones[] = {
             // 0:00 family
-            tz::Timezone::UTC, tz::Timezone::GMT, tz::Timezone::WET,
+            tz::Timezone::UTC,
+            tz::Timezone::GMT,
+            tz::Timezone::WET,
             // positive offsets
-            tz::Timezone::BST_UK, tz::Timezone::CET, tz::Timezone::WEST,
-            tz::Timezone::CEST, tz::Timezone::EET, tz::Timezone::EEST,
-            tz::Timezone::MSK, tz::Timezone::GST, tz::Timezone::PKT,
-            tz::Timezone::IST_IN, tz::Timezone::BDT, tz::Timezone::ICT,
-            tz::Timezone::CST_CN, tz::Timezone::SGT, tz::Timezone::AWST,
-            tz::Timezone::JST, tz::Timezone::KST, tz::Timezone::ACST,
-            tz::Timezone::AEST, tz::Timezone::AEDT, tz::Timezone::NZST,
+            tz::Timezone::BST_UK,
+            tz::Timezone::CET,
+            tz::Timezone::WEST,
+            tz::Timezone::CEST,
+            tz::Timezone::EET,
+            tz::Timezone::EEST,
+            tz::Timezone::MSK,
+            tz::Timezone::GST,
+            tz::Timezone::PKT,
+            tz::Timezone::IST_IN,
+            tz::Timezone::BDT,
+            tz::Timezone::ICT,
+            tz::Timezone::CST_CN,
+            tz::Timezone::SGT,
+            tz::Timezone::AWST,
+            tz::Timezone::JST,
+            tz::Timezone::KST,
+            tz::Timezone::ACST,
+            tz::Timezone::AEST,
+            tz::Timezone::AEDT,
+            tz::Timezone::NZST,
             tz::Timezone::NZDT,
             // negative offsets
-            tz::Timezone::BRT, tz::Timezone::ART, tz::Timezone::NST,
-            tz::Timezone::AST_ATL, tz::Timezone::EST, tz::Timezone::EDT,
-            tz::Timezone::CST_NA, tz::Timezone::CDT_NA, tz::Timezone::MST_NA,
-            tz::Timezone::MDT_NA, tz::Timezone::PST_NA, tz::Timezone::PDT_NA,
-            tz::Timezone::AKST, tz::Timezone::AKDT, tz::Timezone::HST,
+            tz::Timezone::BRT,
+            tz::Timezone::ART,
+            tz::Timezone::NST,
+            tz::Timezone::AST_ATL,
+            tz::Timezone::EST,
+            tz::Timezone::EDT,
+            tz::Timezone::CST_NA,
+            tz::Timezone::CDT_NA,
+            tz::Timezone::MST_NA,
+            tz::Timezone::MDT_NA,
+            tz::Timezone::PST_NA,
+            tz::Timezone::PDT_NA,
+            tz::Timezone::AKST,
+            tz::Timezone::AKDT,
+            tz::Timezone::HST,
     };
 
     constexpr size_t kAllZonesCount = sizeof(kAllZones) / sizeof(kAllZones[0]);
@@ -272,8 +297,7 @@ namespace {
                     break;
                 }
             }
-            EXPECT_TRUE(found) << "Timezone enum value "
-                               << static_cast<int>(zone)
+            EXPECT_TRUE(found) << "Timezone enum value " << static_cast<int>(zone)
                                << " has no row in TIMEZONES[]";
         }
     }
@@ -355,7 +379,7 @@ namespace {
         TimeControl::setTimezone(tz::Timezone::PST_NA);  // -8:00
         const int64_t la = TimeControl::nowLocal();
 
-        TimeControl::setTimezone(tz::Timezone::CET);     // +1:00
+        TimeControl::setTimezone(tz::Timezone::CET);  // +1:00
         const int64_t bcn = TimeControl::nowLocal();
 
         // 9-hour delta between LA and Barcelona in winter.
@@ -379,8 +403,7 @@ namespace {
                   kUtcMs + (static_cast<int64_t>(bcnOffset) * 1000));
 
         // Stored offset still LA after the nowInTz() call.
-        EXPECT_EQ(TimeControl::timezoneOffsetSeconds(),
-                  tz::offsetSeconds(tz::Timezone::PST_NA));
+        EXPECT_EQ(TimeControl::timezoneOffsetSeconds(), tz::offsetSeconds(tz::Timezone::PST_NA));
     }
 
     // ---- TimeControl::format* (delegates to time_format) ----

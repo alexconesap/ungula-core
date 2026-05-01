@@ -34,49 +34,49 @@ namespace ungula {
         /// be added at the end, but existing values must not be reordered
         /// since downstream code may be persisting them as integers.
         enum class Timezone : uint8_t {
-                // ---- 0:00 family ----
-                UTC = 0,
-                GMT,            // +0:00
-                WET,            // +0:00 — Western European
-                // ---- positive offsets ----
-                BST_UK,         // +1:00 — British Summer Time
-                CET,            // +1:00 — Central European
-                WEST,           // +1:00 — Western European Summer
-                CEST,           // +2:00 — Central European Summer
-                EET,            // +2:00 — Eastern European
-                EEST,           // +3:00 — Eastern European Summer
-                MSK,            // +3:00 — Moscow
-                GST,            // +4:00 — Gulf (UAE)
-                PKT,            // +5:00 — Pakistan
-                IST_IN,         // +5:30 — India
-                BDT,            // +6:00 — Bangladesh
-                ICT,            // +7:00 — Indochina (TH/VN/KH/LA)
-                CST_CN,         // +8:00 — China Standard
-                SGT,            // +8:00 — Singapore
-                AWST,           // +8:00 — Australian Western
-                JST,            // +9:00 — Japan
-                KST,            // +9:00 — Korea
-                ACST,           // +9:30 — Australian Central
-                AEST,           // +10:00 — Australian Eastern
-                AEDT,           // +11:00 — Australian Eastern Daylight
-                NZST,           // +12:00 — New Zealand
-                NZDT,           // +13:00 — New Zealand Daylight
-                // ---- negative offsets ----
-                BRT,            // -3:00 — Brazil (Brasília)
-                ART,            // -3:00 — Argentina
-                NST,            // -3:30 — Newfoundland Standard
-                AST_ATL,        // -4:00 — Atlantic Standard (Halifax, Puerto Rico, etc.)
-                EST,            // -5:00 — Eastern Standard (US/Canada)
-                EDT,            // -4:00 — Eastern Daylight
-                CST_NA,         // -6:00 — Central Standard (US/Canada)
-                CDT_NA,         // -5:00 — Central Daylight
-                MST_NA,         // -7:00 — Mountain Standard
-                MDT_NA,         // -6:00 — Mountain Daylight
-                PST_NA,         // -8:00 — Pacific Standard
-                PDT_NA,         // -7:00 — Pacific Daylight
-                AKST,           // -9:00 — Alaska Standard
-                AKDT,           // -8:00 — Alaska Daylight
-                HST,            // -10:00 — Hawaii Standard (no DST)
+            // ---- 0:00 family ----
+            UTC = 0,
+            GMT,  // +0:00
+            WET,  // +0:00 — Western European
+            // ---- positive offsets ----
+            BST_UK,  // +1:00 — British Summer Time
+            CET,     // +1:00 — Central European
+            WEST,    // +1:00 — Western European Summer
+            CEST,    // +2:00 — Central European Summer
+            EET,     // +2:00 — Eastern European
+            EEST,    // +3:00 — Eastern European Summer
+            MSK,     // +3:00 — Moscow
+            GST,     // +4:00 — Gulf (UAE)
+            PKT,     // +5:00 — Pakistan
+            IST_IN,  // +5:30 — India
+            BDT,     // +6:00 — Bangladesh
+            ICT,     // +7:00 — Indochina (TH/VN/KH/LA)
+            CST_CN,  // +8:00 — China Standard
+            SGT,     // +8:00 — Singapore
+            AWST,    // +8:00 — Australian Western
+            JST,     // +9:00 — Japan
+            KST,     // +9:00 — Korea
+            ACST,    // +9:30 — Australian Central
+            AEST,    // +10:00 — Australian Eastern
+            AEDT,    // +11:00 — Australian Eastern Daylight
+            NZST,    // +12:00 — New Zealand
+            NZDT,    // +13:00 — New Zealand Daylight
+            // ---- negative offsets ----
+            BRT,      // -3:00 — Brazil (Brasília)
+            ART,      // -3:00 — Argentina
+            NST,      // -3:30 — Newfoundland Standard
+            AST_ATL,  // -4:00 — Atlantic Standard (Halifax, Puerto Rico, etc.)
+            EST,      // -5:00 — Eastern Standard (US/Canada)
+            EDT,      // -4:00 — Eastern Daylight
+            CST_NA,   // -6:00 — Central Standard (US/Canada)
+            CDT_NA,   // -5:00 — Central Daylight
+            MST_NA,   // -7:00 — Mountain Standard
+            MDT_NA,   // -6:00 — Mountain Daylight
+            PST_NA,   // -8:00 — Pacific Standard
+            PDT_NA,   // -7:00 — Pacific Daylight
+            AKST,     // -9:00 — Alaska Standard
+            AKDT,     // -8:00 — Alaska Daylight
+            HST,      // -10:00 — Hawaii Standard (no DST)
         };
 
         struct Entry {

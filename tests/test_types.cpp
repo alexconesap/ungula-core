@@ -33,8 +33,10 @@ TEST(Temperature, IsValidTemperature) {
     EXPECT_TRUE(temp::isValidTemperature(25.0));
     EXPECT_TRUE(temp::isValidTemperature(-100.0));
     EXPECT_TRUE(temp::isValidTemperature(1500.0));
+    EXPECT_TRUE(temp::isValidTemperature(1500.0F));
     EXPECT_FALSE(temp::isValidTemperature(-201.0));
     EXPECT_FALSE(temp::isValidTemperature(1800.0));
+    EXPECT_FALSE(temp::isValidTemperature(1800.0F));
     EXPECT_FALSE(temp::isValidTemperature(NAN));
     EXPECT_FALSE(temp::isValidTemperature(INFINITY));
 }
@@ -58,7 +60,7 @@ TEST(Temperature, UnpackCelsius) {
 }
 
 TEST(Temperature, PackUnpackRoundTrip) {
-    const float inputs[] = { 0.0f, 25.0F, -40.0F, 100.0F, -10.5f, 0.05F };
+    const float inputs[] = {0.0f, 25.0F, -40.0F, 100.0F, -10.5f, 0.05F};
     for (float c : inputs) {
         int16_t packed = temp::packCelsius(c);
         float unpacked = temp::unpackCelsius(packed);
