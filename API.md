@@ -353,18 +353,17 @@ producer/consumer pair.
 `num_to_string<T>`, `num_to_stringf<T>`, `skipWhitespace*`,
 `trimWhitespace`. All inline.
 
-### `ungula::` math/temperature helpers (in `util/types.h`)
+### `ungula::` math/temp helpers (in `util/types.h`)
 
-- `math::clamp / clampf / clampi / clamp01 / clamp01f / lerp / lerpf`.
-- `temperature::celsiusToFahrenheit / fahrenheitToCelsius` (double and
+- `math::clamp / clampf / clampi` — return clamped value, no side effects.
+- `math::clamp_v / clampf_v / clampi_v` — modify the first argument by
+  reference.
+- `math::clamp01 / clamp01f / lerp / lerpf`.
+- `temp::celsiusToFahrenheit / fahrenheitToCelsius` (double and
   float variants), `isValidTemperature(C)` returns false for non-finite
   or values outside `(-200°C, 1800°C)`.
-- `toUint8<E>()`, `fromUint8<E>(uint8_t)` — generic enum conversion.
-
-`util/types.h` also defines a set of legacy `stringToInt`,
-`stringIndexOf`, `intToString`, `stringTrim` helpers in the `ungula::`
-namespace. Prefer the `ungula::str::` versions for new code; the
-free-function set exists for porting Arduino code with minimal edits.
+- `enums::toUint8<E>()`, `enums::fromUint8<E>(uint8_t)` — generic enum
+  conversion.
 
 ### CRC32
 
@@ -488,7 +487,7 @@ No object in this library uses `new`/`delete` after construction.
 - `preferences/core/esp32_preferences.cpp` — the `nvs_flash` glue.
   Use the `IPreferences` interface; never include this file from app
   code.
-- The `ungula::platformMillis()` / `ungula::platformMicros()` helpers
+- `ungula::platformMillis()` / `ungula::platformMicros()` helpers
   in `util/types.h` are legacy 32-bit shims kept for source
   compatibility with old code; new code uses `TimeControl::millis()`.
 

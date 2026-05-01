@@ -20,118 +20,10 @@
 
 namespace ungula {
 
-// Time functions
-inline uint32_t platformMillis() {
-    using namespace std::chrono;
-    return static_cast<uint32_t>(
-            duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
-}
-inline uint32_t platformMicros() {
-    using namespace std::chrono;
-    return static_cast<uint32_t>(
-            duration_cast<microseconds>(steady_clock::now().time_since_epoch()).count());
-}
-
-// String helpers - Standard C++ implementation
-inline int stringToInt(const string_t& s) {
-    try {
-        return std::stoi(s);
-    } catch (...) {
-        return 0;
-    }
-}
-inline long stringToLong(const string_t& s) {
-    try {
-        return std::stol(s);
-    } catch (...) {
-        return 0;
-    }
-}
-inline float stringToFloat(const string_t& s) {
-    try {
-        return std::stof(s);
-    } catch (...) {
-        return 0.0f;
-    }
-}
-inline double stringToDouble(const string_t& s) {
-    try {
-        return std::stod(s);
-    } catch (...) {
-        return 0.0;
-    }
-}
-inline int stringLength(const string_t& s) {
-    return static_cast<int>(s.length());
-}
-inline int stringIndexOf(const string_t& s, char c, int start = 0) {
-    size_t pos = s.find(c, start);
-    return pos == std::string::npos ? -1 : static_cast<int>(pos);
-}
-inline int stringIndexOf(const string_t& s, const char* str, int start = 0) {
-    size_t pos = s.find(str, start);
-    return pos == std::string::npos ? -1 : static_cast<int>(pos);
-}
-inline string_t stringSubstring(const string_t& s, int start, int end) {
-    return s.substr(start, end - start);
-}
-inline string_t stringSubstring(const string_t& s, int start) {
-    return s.substr(start);
-}
-inline string_t stringToLower(const string_t& s) {
-    string_t result = s;
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    return result;
-}
-inline string_t stringToUpper(const string_t& s) {
-    string_t result = s;
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](unsigned char c) { return std::toupper(c); });
-    return result;
-}
-inline string_t stringTrim(const string_t& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos)
-        return "";
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
-}
-inline bool stringStartsWith(const string_t& s, const char* prefix) {
-    return s.rfind(prefix, 0) == 0;
-}
-inline bool stringEndsWith(const string_t& s, const char* suffix) {
-    size_t len = std::strlen(suffix);
-    if (s.size() < len)
-        return false;
-    return s.compare(s.size() - len, len, suffix) == 0;
-}
-inline string_t intToString(int val) {
-    return std::to_string(val);
-}
-inline string_t longToString(long val) {
-    return std::to_string(val);
-}
-inline string_t floatToString(float val, int decimals = 2) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.*f", decimals, static_cast<double>(val));
-    return string_t(buf);
-}
-inline string_t doubleToString(double val, int decimals = 2) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.*f", decimals, val);
-    return string_t(buf);
-}
-inline const char* stringCStr(const string_t& s) {
-    return s.c_str();
-}
-
-using PlatformString = std::string;
-
 // ==================== TEMPERATURE CONVERSION ====================
 // Shared utilities for temperature unit conversion
 
-namespace temperature {
+namespace temp {
 
     constexpr double FAHRENHEIT_FREEZING_POINT = 32.0;
     constexpr double FAHRENHEIT_TO_CELSIUS_SCALE = 5.0 / 9.0;
@@ -146,7 +38,7 @@ namespace temperature {
     }
 
     constexpr float celsiusToFahrenheitF(float c) {
-        return c * static_cast<float>(CELSIUS_TO_FAHRENHEIT_SCALE) +
+        return (c * static_cast<float>(CELSIUS_TO_FAHRENHEIT_SCALE)) +
                static_cast<float>(FAHRENHEIT_FREEZING_POINT);
     }
 
@@ -163,37 +55,104 @@ namespace temperature {
         return std::isfinite(tempC) && tempC > -200.0f && tempC < 1800.0f;
     }
 
-}  // namespace temperature
+}  // namespace temp
 
 // ==================== MATH UTILITIES ====================
 // Common clamping and interpolation functions
 
 namespace math {
 
+    /// @brief Clamp a double value to a specified range [minVal, maxVal]. Returns the clamped value without modifying the input.
+    /// @param value The double value to clamp.
+    /// @param minVal The minimum allowed value for the input. If `value` is less than `minVal`, the return value will be `minVal`.
+    /// @param maxVal The maximum allowed value for the input. If `value` is greater than `maxVal`, the return value will be `maxVal`.
+    /// @return The clamped double value, guaranteed to be between `minVal` and `maxVal` inclusive. If `value` is within the range, it is returned unchanged.
     inline double clamp(double value, double minVal, double maxVal) {
         return value < minVal ? minVal : (value > maxVal ? maxVal : value);
     }
 
+    /// @brief Clamp a double value to a specified range [minVal, maxVal]. Modifies the input value in place if it is outside the range.
+    /// @param value The double value to clamp. This parameter is passed by reference and will be modified to fit within the specified range.
+    /// @param minVal The minimum allowed value for the input. If `value` is less than `minVal`, it will be set to `minVal`.
+    /// @param maxVal The maximum allowed value for the input. If `value` is greater than `maxVal`, it will be set to `maxVal`.
+    inline void clamp_v(double& value, double minVal, double maxVal) {
+        if (value < minVal) {
+            value = minVal;
+        } else if (value > maxVal) {
+            value = maxVal;
+        }
+    }
+
+    /// @brief Clamp a float value to a specified range [minVal, maxVal]. Returns the clamped value without modifying the input.
+    /// @param value The float value to clamp.
+    /// @param minVal The minimum allowed value for the input. If `value` is less than `minVal`, the return value will be `minVal`.
+    /// @param maxVal The maximum allowed value for the input. If `value` is greater than `maxVal`, the return value will be `maxVal`.
+    /// @return The clamped float value, guaranteed to be between `minVal` and `maxVal` inclusive. If `value` is within the range, it is returned unchanged.
     inline float clampf(float value, float minVal, float maxVal) {
         return value < minVal ? minVal : (value > maxVal ? maxVal : value);
     }
 
+    /// @brief Clamp a float value to a specified range [minVal, maxVal]. Modifies the input value in place if it is outside the range.
+    /// @param value The float value to clamp. This parameter is passed by reference and will be modified to fit within the specified range.
+    /// @param minVal The minimum allowed value for the input. If `value` is less than `minVal`, it will be set to `minVal`.
+    /// @param maxVal The maximum allowed value for the input. If `value` is greater than `maxVal`, it will be set to `maxVal`.
+    inline void clampf_v(float& value, float minVal, float maxVal) {
+        if (value < minVal) {
+            value = minVal;
+        } else if (value > maxVal) {
+            value = maxVal;
+        }
+    }
+
+    /// @brief Clamp an integer value to a specified range [minVal, maxVal]. Returns the clamped value without modifying the input.
+    /// @param value The integer value to clamp.
+    /// @param minVal The minimum allowed value for the input. If `value` is less than `minVal`, the return value will be `minVal`.
+    /// @param maxVal The maximum allowed value for the input. If `value` is greater than `maxVal`, the return value will be `maxVal`.
+    /// @return The clamped integer value, guaranteed to be between `minVal` and `maxVal` inclusive. If `value` is within the range, it is returned unchanged.
     inline int clampi(int value, int minVal, int maxVal) {
         return value < minVal ? minVal : (value > maxVal ? maxVal : value);
     }
 
+    /// @brief Clamp an integer value to a specified range [minVal, maxVal]. Modifies the input value in place in required.
+    /// @param value The integer value to clamp. This parameter is passed by reference and will be modified to fit within the specified range.
+    /// @param minVal The minimum allowed value for the input. If `value` is less than `minVal`, it will be set to `minVal`.
+    /// @param maxVal The maximum allowed value for the input. If `value` is greater than `maxVal`, it will be set to `maxVal`.
+    inline void clampi_v(int& value, int minVal, int maxVal) {
+        if (value < minVal) {
+            value = minVal;
+        } else if (value > maxVal) {
+            value = maxVal;
+        }
+    }
+
+    /// @brief Clamp a double to the range [0, 1].
+    /// @param value The double value to clamp.
+    /// @return The clamped double value, guaranteed to be between 0.0 and 1.0 inclusive.
     inline double clamp01(double value) {
         return clamp(value, 0.0, 1.0);
     }
 
+    /// @brief Clamp a float to the range [0, 1].
+    /// @param value The float value to clamp.
+    /// @return The clamped float value, guaranteed to be between 0.0f and 1.0f inclusive.
     inline float clamp01f(float value) {
         return clampf(value, 0.0f, 1.0f);
     }
 
+    /// @brief Linear interpolation for doubles. Clamps t to [0, 1] to prevent extrapolation.
+    /// @param a Starting value corresponding to t=0.
+    /// @param b Ending value corresponding to t=1.
+    /// @param t Interpolation factor. If t is outside [0, 1], the result is clamped to a or b respectively. 
+    /// @return Interpolated value between a and b. If t is outside [0, 1], returns a or b respectively.
     inline double lerp(double a, double b, double t) {
         return a + (b - a) * clamp01(t);
     }
 
+    /// @brief Linear interpolation for floats. Clamps t to [0, 1] to prevent extrapolation.
+    /// @param a Starting value corresponding to t=0.
+    /// @param b Ending value corresponding to t=1.
+    /// @param t Interpolation factor. If t is outside [0, 1], the result is clamped to a or b respectively.
+    /// @return Interpolated value between a and b. If t is outside [0, 1], returns a or b respectively.
     inline float lerpf(float a, float b, float t) {
         return a + (b - a) * clamp01f(t);
     }
@@ -204,14 +163,24 @@ namespace math {
 // Generic functions for converting between enums and uint8_t.
 // Works with any enum type from any project.
 
-template <typename EnumT>
-inline uint8_t toUint8(EnumT val) {
-    return static_cast<uint8_t>(val);
-}
+namespace enums {
+    /// @brief Convert an enum value to its underlying uint8_t representation. Use for compact storage or serialization.
+    /// @tparam EnumT The enum type to convert. Must be an enum with an underlying type that can fit in uint8_t.
+    /// @param val The enum value to convert to uint8_t.
+    /// @return The uint8_t representation of the enum value. The caller must ensure that the enum value can be safely cast to uint8_t without data loss.
+    template <typename EnumT>
+    inline uint8_t toUint8(EnumT val) {
+        return static_cast<uint8_t>(val);
+    }
 
-template <typename EnumT>
-inline EnumT fromUint8(uint8_t val) {
-    return static_cast<EnumT>(val);
-}
+    /// @brief Convert a uint8_t value back to its enum representation. Use for reading compact storage or deserialization.
+    /// @tparam EnumT The enum type to convert to. Must be an enum with an underlying type that can fit in uint8_t.
+    /// @param val The uint8_t value to convert to the enum type. The caller must ensure that the uint8_t value corresponds to a valid enum value of EnumT.
+    /// @return The enum value corresponding to the given uint8_t. The caller must ensure that the uint8_t value can be safely cast to EnumT without data loss or undefined behavior.
+    template <typename EnumT>
+    inline EnumT fromUint8(uint8_t val) {
+        return static_cast<EnumT>(val);
+    }
+} // namespace enums
 
 }  // namespace ungula

@@ -8,35 +8,35 @@ using namespace ungula;
 // --- Temperature conversion ---
 
 TEST(Temperature, CelsiusToFahrenheit) {
-    EXPECT_DOUBLE_EQ(temperature::celsiusToFahrenheit(0.0), 32.0);
-    EXPECT_DOUBLE_EQ(temperature::celsiusToFahrenheit(100.0), 212.0);
-    EXPECT_NEAR(temperature::celsiusToFahrenheit(-40.0), -40.0, 0.001);
+    EXPECT_DOUBLE_EQ(temp::celsiusToFahrenheit(0.0), 32.0);
+    EXPECT_DOUBLE_EQ(temp::celsiusToFahrenheit(100.0), 212.0);
+    EXPECT_NEAR(temp::celsiusToFahrenheit(-40.0), -40.0, 0.001);
 }
 
 TEST(Temperature, FahrenheitToCelsius) {
-    EXPECT_DOUBLE_EQ(temperature::fahrenheitToCelsius(32.0), 0.0);
-    EXPECT_DOUBLE_EQ(temperature::fahrenheitToCelsius(212.0), 100.0);
-    EXPECT_NEAR(temperature::fahrenheitToCelsius(-40.0), -40.0, 0.001);
+    EXPECT_DOUBLE_EQ(temp::fahrenheitToCelsius(32.0), 0.0);
+    EXPECT_DOUBLE_EQ(temp::fahrenheitToCelsius(212.0), 100.0);
+    EXPECT_NEAR(temp::fahrenheitToCelsius(-40.0), -40.0, 0.001);
 }
 
 TEST(Temperature, RoundTrip) {
     double c = 123.456;
-    EXPECT_NEAR(temperature::fahrenheitToCelsius(temperature::celsiusToFahrenheit(c)), c, 1e-10);
+    EXPECT_NEAR(temp::fahrenheitToCelsius(temp::celsiusToFahrenheit(c)), c, 1e-10);
 }
 
 TEST(Temperature, FloatVariants) {
-    EXPECT_FLOAT_EQ(temperature::celsiusToFahrenheitF(0.0f), 32.0f);
-    EXPECT_FLOAT_EQ(temperature::fahrenheitToCelsiusF(32.0f), 0.0f);
+    EXPECT_FLOAT_EQ(temp::celsiusToFahrenheitF(0.0f), 32.0f);
+    EXPECT_FLOAT_EQ(temp::fahrenheitToCelsiusF(32.0f), 0.0f);
 }
 
 TEST(Temperature, IsValidTemperature) {
-    EXPECT_TRUE(temperature::isValidTemperature(25.0));
-    EXPECT_TRUE(temperature::isValidTemperature(-100.0));
-    EXPECT_TRUE(temperature::isValidTemperature(1500.0));
-    EXPECT_FALSE(temperature::isValidTemperature(-201.0));
-    EXPECT_FALSE(temperature::isValidTemperature(1800.0));
-    EXPECT_FALSE(temperature::isValidTemperature(NAN));
-    EXPECT_FALSE(temperature::isValidTemperature(INFINITY));
+    EXPECT_TRUE(temp::isValidTemperature(25.0));
+    EXPECT_TRUE(temp::isValidTemperature(-100.0));
+    EXPECT_TRUE(temp::isValidTemperature(1500.0));
+    EXPECT_FALSE(temp::isValidTemperature(-201.0));
+    EXPECT_FALSE(temp::isValidTemperature(1800.0));
+    EXPECT_FALSE(temp::isValidTemperature(NAN));
+    EXPECT_FALSE(temp::isValidTemperature(INFINITY));
 }
 
 // --- Math clamp ---
@@ -80,47 +80,51 @@ TEST(MathUtils, LerpClampsT) {
 enum class TestEnum : uint8_t { A = 0, B = 1, C = 42 };
 
 TEST(EnumConversion, ToUint8) {
-    EXPECT_EQ(toUint8(TestEnum::A), 0);
-    EXPECT_EQ(toUint8(TestEnum::C), 42);
+    EXPECT_EQ(enums::toUint8(TestEnum::A), 0);
+    EXPECT_EQ(enums::toUint8(TestEnum::C), 42);
 }
 
 TEST(EnumConversion, FromUint8) {
-    EXPECT_EQ(fromUint8<TestEnum>(0), TestEnum::A);
-    EXPECT_EQ(fromUint8<TestEnum>(42), TestEnum::C);
+    EXPECT_EQ(enums::fromUint8<TestEnum>(0), TestEnum::A);
+    EXPECT_EQ(enums::fromUint8<TestEnum>(42), TestEnum::C);
 }
 
-// --- Platform string helpers ---
+// --- Math clamp (by reference) ---
 
-TEST(PlatformStrings, StringToInt) {
-    EXPECT_EQ(stringToInt("42"), 42);
-    EXPECT_EQ(stringToInt("invalid"), 0);
+TEST(MathUtils, ClampDoubleByRef) {
+    double v = 15.0;
+    math::clamp_v(v, 0.0, 10.0);
+    EXPECT_DOUBLE_EQ(v, 10.0);
+
+    v = -5.0;
+    math::clamp_v(v, 0.0, 10.0);
+    EXPECT_DOUBLE_EQ(v, 0.0);
+
+    v = 5.0;
+    math::clamp_v(v, 0.0, 10.0);
+    EXPECT_DOUBLE_EQ(v, 5.0);
 }
 
-TEST(PlatformStrings, StringToDouble) {
-    EXPECT_NEAR(stringToDouble("3.14"), 3.14, 0.001);
-    EXPECT_DOUBLE_EQ(stringToDouble("invalid"), 0.0);
+TEST(MathUtils, ClampFloatByRef) {
+    float v = -1.0f;
+    math::clampf_v(v, 0.0f, 1.0f);
+    EXPECT_FLOAT_EQ(v, 0.0f);
+
+    v = 1.5f;
+    math::clampf_v(v, 0.0f, 1.0f);
+    EXPECT_FLOAT_EQ(v, 1.0f);
 }
 
-TEST(PlatformStrings, IntToString) {
-    EXPECT_EQ(intToString(42), "42");
-}
+TEST(MathUtils, ClampIntByRef) {
+    int v = 20;
+    math::clampi_v(v, 0, 10);
+    EXPECT_EQ(v, 10);
 
-TEST(PlatformStrings, StringStartsWith) {
-    EXPECT_TRUE(stringStartsWith("hello world", "hello"));
-    EXPECT_FALSE(stringStartsWith("hello", "world"));
-}
+    v = -1;
+    math::clampi_v(v, 0, 10);
+    EXPECT_EQ(v, 0);
 
-TEST(PlatformStrings, StringEndsWith) {
-    EXPECT_TRUE(stringEndsWith("hello world", "world"));
-    EXPECT_FALSE(stringEndsWith("hello", "world"));
-}
-
-TEST(PlatformStrings, StringTrim) {
-    EXPECT_EQ(stringTrim("  hello  "), "hello");
-    EXPECT_EQ(stringTrim(""), "");
-}
-
-TEST(PlatformStrings, StringCase) {
-    EXPECT_EQ(stringToLower("HELLO"), "hello");
-    EXPECT_EQ(stringToUpper("hello"), "HELLO");
+    v = 5;
+    math::clampi_v(v, 0, 10);
+    EXPECT_EQ(v, 5);
 }

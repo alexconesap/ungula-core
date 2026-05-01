@@ -378,15 +378,21 @@ Both nested under `ungula::`.
 ```cpp
 #include <util/types.h>
 
-double f = ungula::temperature::celsiusToFahrenheit(100.0);  // 212.0
-double c = ungula::temperature::fahrenheitToCelsius(600.0);  // 315.56
-bool ok  = ungula::temperature::isValidTemperature(300.0);   // true (finite && [-200, 1800))
+double f = ungula::temp::celsiusToFahrenheit(100.0);  // 212.0
+double c = ungula::temp::fahrenheitToCelsius(600.0);  // 315.56
+bool ok  = ungula::temp::isValidTemperature(300.0);   // true (finite && [-200, 1800))
 
 double v = ungula::math::clamp(1.5, 0.0, 1.0);   // 1.0
 double t = ungula::math::lerp(0.0, 100.0, 0.5);  // 50.0
+
+// In-place variants modify the value by reference:
+double x = 1.5;
+ungula::math::clamp_v(x, 0.0, 1.0);  // x == 1.0
 ```
 
-`util/types.h` also exposes `ungula::stringToInt`, `ungula::intToString`, `ungula::platformMillis`, etc. — all the older free functions, now inside the `ungula::` namespace.
+`clamp_v / clampf_v / clampi_v` modify the first argument in place.
+`clamp / clampf / clampi` return the clamped value without touching the
+input. `clamp01 / clamp01f` and `lerp / lerpf` are also available.
 
 ## Preferences (`preferences/`)
 
