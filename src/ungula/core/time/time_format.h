@@ -11,16 +11,16 @@
 /// @brief Pure date/time formatter — `strftime` over an explicit
 /// (epoch seconds, offset seconds) pair.
 ///
-/// Knows nothing about NTP, RTC, FreeRTOS, or `TimeControl`. Callers
-/// supply the value; the formatter prints it. This is the building
-/// block that `TimeControl::formatLocal()` and the NTP-side wrapper
-/// (when one exists) delegate to.
+/// Knows nothing about NTP, RTC, FreeRTOS, or the time API's provider
+/// hook. Callers supply the value; the formatter prints it. This is the
+/// building block that `formatLocal()` / `formatUtc()` and the NTP-side
+/// wrapper (when one exists) delegate to.
 ///
 /// All functions use `gmtime_r` internally — the offset is applied
 /// arithmetically. The system's TZ environment is never consulted, so
 /// behaviour is identical across hosts and ESP32 builds.
 
-namespace ungula::core::time::time_format {
+namespace ungula::core::time {
 
     /// Format an arbitrary epoch instant with a custom strftime spec.
     ///
@@ -55,4 +55,4 @@ namespace ungula::core::time::time_format {
         return format(buf, bufSize, "%Y-%m-%d %H:%M:%S", epochSeconds, offsetSeconds);
     }
 
-}  // namespace ungula::core::time::time_format
+}  // namespace ungula::core::time

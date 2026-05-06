@@ -4,12 +4,11 @@
 
 #pragma once
 
-/// @brief ESP32 / ESP-IDF backend for TimeControl.
+/// @brief ESP32 / ESP-IDF backend for the time API.
 ///
 /// Pure ESP-IDF — FreeRTOS for coarse delays, esp_timer for monotonic
-/// time, esp_rom_delay_us for busy-wait microsecond delays. No guards
-/// on anything other platform might lack; this file is only reached
-/// via the `#if defined(ESP_PLATFORM)` branch of `time_control.h`.
+/// time, esp_rom_delay_us for busy-wait microsecond delays. Reached via
+/// the `#if defined(ESP_PLATFORM)` branch of `time_control.h`.
 ///
 /// `esp_timer_get_time()` returns int64_t microseconds — feeding it
 /// straight through (no narrowing) is the whole point of the int64_t
@@ -43,29 +42,30 @@ namespace ungula::core::time::detail {
 }  // namespace ungula::core::time::detail
 
 namespace ungula::core::time {
-    inline TimeControl::tick_ms_t TimeControl::millis() {
+
+    inline tick_ms_t millis() {
         return esp_timer_get_time() / 1000;
     }
 
-    inline TimeControl::tick_us_t TimeControl::micros() {
+    inline tick_us_t micros() {
         return esp_timer_get_time();
     }
 
-    inline void TimeControl::delayMs(duration_ms_t msv) {
+    inline void delayMs(duration_ms_t msv) {
         if (msv <= 0) {
             return;
         }
         vTaskDelay(pdMS_TO_TICKS(static_cast<uint32_t>(msv)));
     }
 
-    inline void TimeControl::delayUs(duration_us_t usv) {
+    inline void delayUs(duration_us_t usv) {
         if (usv <= 0) {
             return;
         }
         esp_rom_delay_us(static_cast<uint32_t>(usv));
     }
 
-    inline void TimeControl::delayUntilMs(tick_ms_t& reference, duration_ms_t periodMs) {
+    inline void delayUntilMs(tick_ms_t& reference, duration_ms_t periodMs) {
         if (periodMs <= 0) {
             return;
         }
@@ -83,7 +83,7 @@ namespace ungula::core::time {
         reference = static_cast<tick_ms_t>(refTicks * portTICK_PERIOD_MS);
     }
 
-    inline void TimeControl::delayUntilUs(tick_us_t& reference, duration_us_t periodUs) {
+    inline void delayUntilUs(tick_us_t& reference, duration_us_t periodUs) {
         if (periodUs <= 0) {
             return;
         }

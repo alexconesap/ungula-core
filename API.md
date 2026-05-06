@@ -20,15 +20,15 @@ directly when only part of the surface is needed.
 ```cpp
 #include <ungula/core.h>
 
-using ungula::core::time::TimeControl;
+namespace tc = ungula::core::time;
 
 void setup() {}
 
 void loop() {
-    auto ref = TimeControl::millis();
+    auto ref = tc::millis();
     while (true) {
         // ... read sensors, push status ...
-        TimeControl::delayUntilMs(ref, 50);   // every 50 ms, no drift
+        tc::delayUntilMs(ref, 50);   // every 50 ms, no drift
     }
 }
 ```
@@ -42,7 +42,7 @@ inside the loop does not accumulate.
 ```cpp
 #include <ungula/core/time/time_control.h>
 
-ungula::core::time::TimeControl::delayUs(250);   // ~250 µs busy-wait on ESP32
+ungula::core::time::delayUs(250);   // ~250 µs busy-wait on ESP32
 ```
 
 When to use this: bit-banging, short hardware-timing windows. Prefer
@@ -67,13 +67,13 @@ class NtpClock : public ungula::core::time::ITimeProvider {
 static NtpClock clock;
 
 void setup() {
-    ungula::core::time::TimeControl::setTimeProvider(&clock);
-    ungula::core::time::TimeControl::setTimezone(ungula::core::time::tz::Timezone::CET);
+    ungula::core::time::setTimeProvider(&clock);
+    ungula::core::time::setTimezone(ungula::core::time::tz::Timezone::CET);
 }
 
 void printNow() {
     char buf[20];
-    if (ungula::core::time::TimeControl::formatLocal(buf, sizeof(buf)) > 0) {
+    if (ungula::core::time::formatLocal(buf, sizeof(buf)) > 0) {
         // buf == "2026-04-26 14:32:01"
     }
 }
@@ -236,7 +236,7 @@ void printBootBanner() {
 
 | Type | Header | Purpose |
 | ---- | ------ | ------- |
-| `ungula::core::time::TimeControl` | `ungula/core/time/time_control.h` | Static-only time/delay facade |
+| `ungula::core::time` (namespace) | `ungula/core/time/time_control.h` | Free-function time/delay API |
 | `ungula::core::time::ITimeProvider` | `ungula/core/time/i_time_provider.h` | Pluggable wall-clock source |
 | `ungula::core::time::tz::Timezone` (enum) | `ungula/core/time/timezones.h` | Named UTC offset codes |
 | `ungula::core::preferences::IPreferences` | `ungula/core/preferences/core/i_preferences.h` | Abstract NVS interface |
@@ -248,45 +248,52 @@ void printBootBanner() {
 | `ungula::core::system::ChipInfo` | `ungula/core/system/chip_info.h` | MCU identity struct |
 | `ungula::core::util::string_t`, `string_view_t`, `vector_string_t` | `ungula/core/util/string_types.h` | std-aliases used across all libraries |
 
-Time-aliases inside `TimeControl`: `tick_ms_t`, `tick_us_t`,
-`duration_ms_t`, `duration_us_t`, `epoch_ms_t` — all `int64_t`. Names
-exist to make intent visible at call sites; types are interchangeable.
+Time aliases at namespace scope (`ungula::core::time::tick_ms_t`,
+`tick_us_t`, `duration_ms_t`, `duration_us_t`, `epoch_ms_t`) — all
+`int64_t`. Names exist to make intent visible at call sites; types are
+interchangeable.
 
-`TimeControl`, `SystemControl` are non-instantiable (constructors
-deleted). All members are `static`.
+`SystemControl` is non-instantiable (constructors deleted, all members
+`static`).
 
 ---
 
 ## Public functions / methods
 
-### `ungula::core::time::TimeControl` (selected)
+### `ungula::core::time` (selected)
 
-- **`static tick_ms_t millis()`** / **`static tick_us_t micros()`**
+All free functions in the `ungula::core::time` namespace. There is no
+class to instantiate — call them directly, or under a short alias
+(`namespace tc = ungula::core::time;`).
+
+- **`tick_ms_t millis()`** / **`tick_us_t micros()`**
   Monotonic since boot. Both `int64_t` — never wrap in any device
   lifetime.
-- **`static void delay(duration_ms_t)`** / **`delayMs`** / **`delayUs`**
+- **`void delay(duration_ms_t)`** / **`delayMs`** / **`delayUs`**
   Block the current task. ESP32 backend yields via FreeRTOS for
   `delayMs`; `delayUs` busy-waits.
-- **`static void delayUntilMs(tick_ms_t& ref, duration_ms_t period)`**
+- **`void delayUntilMs(tick_ms_t& ref, duration_ms_t period)`**
   Wait until `ref + period`, then advance `ref` by `period`. Drift-free.
   Identical signature in `delayUntilUs`.
-- **`static void yield()`** — alias for `delayMs(0)`.
-- **`static epoch_ms_t now() / nowUtc() / nowLocal()`**
+- **`void yield()`** — alias for `delayMs(0)`.
+- **`epoch_ms_t now() / nowUtc() / nowLocal()`**
   Wall-clock if a provider is installed and valid; otherwise
   monotonic-since-boot. `nowLocal()` adds the configured offset.
-- **`static epoch_ms_t nowInTz(int32_t offsetSeconds)`**
+- **`epoch_ms_t nowInTz(int32_t offsetSeconds)`**
   One-shot conversion without touching the stored offset.
-- **`static void setTimeProvider(ITimeProvider*)`** /
+- **`void setTimeProvider(ITimeProvider*)`** /
   **`clearTimeProvider()`** — install/remove the wall-clock source.
-- **`static void setTimezone(tz::Timezone)`** /
+- **`void setTimezone(tz::Timezone)`** /
   **`setTimezoneOffsetSeconds(int32_t)`** /
   **`int32_t timezoneOffsetSeconds()`**
-- **`static size_t formatUtc(char*, size_t)`** /
+- **`size_t formatUtc(char*, size_t)`** /
   **`formatLocal(char*, size_t)`** /
-  **`format(char*, size_t, const char* strftimeFmt)`**
+  **`formatNow(char*, size_t, const char* strftimeFmt)`**
   All return `0` when no valid provider is installed (formatting a
-  monotonic tick as a date would print "1970-…" otherwise).
-- **`static void setSyncTime(tick_ms_t remoteMs)`** /
+  monotonic tick as a date would print "1970-…" otherwise). The 5-arg
+  `format(buf, size, fmt, epochSec, offset)` from `time_format.h`
+  handles arbitrary stored timestamps.
+- **`void setSyncTime(tick_ms_t remoteMs)`** /
   **`setSyncTimeUs`** / **`tick_ms_t syncNow()`** /
   **`tick_us_t syncNowUs()`** / **`int64_t syncOffset()`** /
   **`bool isSynced()`** / **`clearSync()`**
@@ -412,10 +419,11 @@ freely.
 
 ## Lifecycle
 
-- **TimeControl** — no init required for `millis`/`micros`/`delay*`.
-  For `now()` to return wall-clock, install a provider with
-  `setTimeProvider` and ensure `isValid()` returns `true` before the
-  first call. `setTimezone` is a one-shot configuration.
+- **Time API (`ungula::core::time`)** — no init required for
+  `millis`/`micros`/`delay*`. For `now()` to return wall-clock, install
+  a provider with `setTimeProvider` and ensure `isValid()` returns
+  `true` before the first call. `setTimezone` is a one-shot
+  configuration.
 - **Esp32Preferences** — every read/write must be sandwiched in
   `begin(ns)` … `end()`. NVS init (`nvs_flash_init`) must happen
   before the first `begin`. Forgetting `end()` leaks an NVS handle.
@@ -443,7 +451,7 @@ No object in this library uses `new`/`delete` after construction.
   slot 0; check `getProgram(idx).valid` to distinguish "real slot 0"
   from "fallback slot 0".
 - `Queue::push/pop/peek` — `false` on full/empty; never block.
-- `TimeControl::format*` — return `0` when no valid time provider is
+- `tc::format*` — return `0` when no valid time provider is
   installed (caller must check before treating the buffer as printable).
 - `tz::offsetSeconds` — undefined enum values return `0` (UTC).
 
@@ -451,17 +459,18 @@ No object in this library uses `new`/`delete` after construction.
 
 ## Threading / timing / hardware notes
 
-- **TimeControl::millis / micros**: ESP32 backend uses
+- **tc::millis / micros**: ESP32 backend uses
   `esp_timer_get_time()` — ISR-safe and lock-free. Host backend uses
   `std::chrono::steady_clock`.
-- **TimeControl::delayMs**: ESP32 yields via FreeRTOS
+- **tc::delayMs**: ESP32 yields via FreeRTOS
   (`vTaskDelay`-equivalent). Host backend uses
   `std::this_thread::sleep_for`. Do NOT call from inside an ISR.
-- **TimeControl::delayUs**: busy-wait on ESP32 — does not yield.
+- **tc::delayUs**: busy-wait on ESP32 — does not yield.
   Acceptable up to a few hundred microseconds.
-- **TimeControl static state** (`provider_`, `sync_`,
-  `timezoneOffsetSeconds_`): not protected by a mutex. Configure once
-  during `setup()` from a single task; readers can be concurrent.
+- **Module state in `ungula::core::time::detail::`** (`provider_`,
+  `sync_`, `timezoneOffsetSeconds_`): not protected by a mutex.
+  Configure once during `setup()` from a single task; readers can be
+  concurrent.
 - **Queue**: not thread-safe. One producer + one consumer is fine
   only if you accept the standard SPSC caveats; for ISR↔task use a
   FreeRTOS queue or wrap with `portENTER_CRITICAL`.
@@ -480,11 +489,9 @@ No object in this library uses `new`/`delete` after construction.
 - `ungula/core/time/platforms/time_control_esp32.h`,
   `ungula/core/time/platforms/time_control_host.h` — picked automatically by
   `time_control.h`. Never `#include` directly.
-- `TimeControl::hasReachedMs / hasReachedUs` — private comparison
-  helpers.
-- `TimeControl::SyncState` and the static storage members
-  (`provider_`, `sync_`, `timezoneOffsetSeconds_`) — implementation
-  detail of the static facade.
+- `ungula::core::time::detail::SyncState` and the inline-static storage
+  members (`provider_`, `sync_`, `timezoneOffsetSeconds_`) —
+  implementation detail of the namespace; do not reach into them.
 - `ProgramStore::ProgramBlob`, `computeCrc`, `loadAllFromNvs`,
   `saveProgramToNvs`, `loadMetaFromNvs`, `saveMetaToNvs`,
   `programKey`, `NVS_NS = "programs"` — internal layout. Do not
@@ -496,7 +503,8 @@ No object in this library uses `new`/`delete` after construction.
 
 ## LLM usage rules
 
-- Use `TimeControl` for all time and delay needs. Never call `millis()`,
+- Use the `ungula::core::time` free functions for all time and delay
+  needs (e.g. `ungula::core::time::delay(2000)`). Never call `millis()`,
   `micros()`, `delay()`, or platform timer APIs (`esp_timer_*`,
   `vTaskDelay`) directly from project code.
 - Use `delayUntilMs` for periodic loops; `delayMs` only for fire-and-

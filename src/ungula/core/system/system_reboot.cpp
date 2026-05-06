@@ -23,7 +23,7 @@ namespace ungula::core::system {
 
     void SystemControl::rebootAfterMs(uint32_t waitTimeMs) {
         if (waitTimeMs != 0U) {
-            ungula::core::time::TimeControl::delayMs(waitTimeMs);
+            ungula::core::time::delayMs(waitTimeMs);
         }
         reboot();
     }

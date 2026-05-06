@@ -30,7 +30,7 @@ Then include whatever component you need in your code:
 
 ## Time Control (`ungula/core/time/`)
 
-Portable time abstraction. All static methods, no instantiation needed. `time_control.h` is the only header your code ever includes; it dispatches to a platform-specific backend at build time:
+Portable time abstraction. Free functions in `ungula::core::time` — no class to instantiate, no `TimeControl::` prefix. `time_control.h` is the only header your code ever includes; it dispatches to a platform-specific backend at build time:
 
 ```text
 ungula/core/time/
@@ -43,6 +43,26 @@ ungula/core/time/
 
 Selection happens at the bottom of `time_control.h` via a single `#if defined(ESP_PLATFORM)`. Adding a new platform (STM32, etc.) means dropping one more file into `platforms/` and adding one `#elif` branch — no cross-platform `#ifdef` clutter inside any implementation file.
 
+### Calling style
+
+The API is a flat set of free functions in `ungula::core::time`. Use them directly:
+
+```cpp
+ungula::core::time::delay(2000);
+ungula::core::time::delayUs(500);
+auto t = ungula::core::time::millis();
+```
+
+…or under a short namespace alias if you call them often:
+
+```cpp
+namespace tc = ungula::core::time;
+tc::delay(2000);
+auto t = tc::millis();
+```
+
+There is no `TimeControl::` class — every call is a free function on the namespace.
+
 ### Periodic Loop Without Drift
 
 This is the main use case. Instead of doing `delay(10)` at the end of a loop (which accumulates drift from the work time), use `delayUntilMs`. It advances the reference by the period, not by "now + period", so you get consistent timing:
@@ -50,48 +70,48 @@ This is the main use case. Instead of doing `delay(10)` at the end of a loop (wh
 ```cpp
 #include "ungula/core/time/time_control.h"
 
-using ungula::core::time::TimeControl;
+namespace tc = ungula::core::time;
 
-auto ref = TimeControl::millis();
+auto ref = tc::millis();
 while (running) {
     readSensors();  // takes 3ms
     sendStatus();   // takes 4ms
 
     // delay(50) would wait 50ms on top of the 7ms of work = 57ms total.
     // delayUntilMs waits only 43ms — the time remaining to reach 50ms.
-    TimeControl::delayUntilMs(ref, 50);  // 50ms period, drift-free
+    tc::delayUntilMs(ref, 50);  // 50ms period, drift-free
 }
 ```
 
 Same thing in microseconds (best-effort, busy-wait):
 
 ```cpp
-auto ref = TimeControl::micros();
+auto ref = tc::micros();
 while (stepping) {
     toggleStepPin();
-    TimeControl::delayUntilUs(ref, 200);  // 200us period
+    tc::delayUntilUs(ref, 200);  // 200us period
 }
 ```
 
 ### Simple Delays and cross-platform time functions
 
 ```cpp
-TimeControl::delayMs(100);           // block for 100ms
-TimeControl::delayUs(500);           // block for 500us (busy-wait)
-auto now = TimeControl::millis();    // monotonic ms tick
-auto us  = TimeControl::micros();    // monotonic us tick
+tc::delayMs(100);           // block for 100ms
+tc::delayUs(500);           // block for 500us (busy-wait)
+auto now = tc::millis();    // monotonic ms tick
+auto us  = tc::micros();    // monotonic us tick
 ```
 
 ### Useful helpers
 
 ```cpp
 // Stop using 
-TimeControl::delayMs(0); // It works but requires a side commentary
+tc::delayMs(0); // It works but requires a side commentary
 // Another dev could remove it, or waste time trying to figure out
 // if 'is 0 wrong? Missing a 1 in front to be 10?'
 
 // You can express better your intent by using
-TimeControl::yield();
+tc::yield();
 ```
 
 ### Wall-clock vs monotonic — what each call returns
@@ -115,7 +135,7 @@ The aliases (`tick_ms_t`, `tick_us_t`, `duration_ms_t`, `duration_us_t`, `epoch_
 2. **No silent truncation.** ESP-IDF's `esp_timer_get_time()` already returns `int64_t`. The previous `uint32_t` `micros()` was *wrong* past 71 minutes — values were truncated to the low 32 bits. Now the call is straight pass-through.
 3. **Signed math just works for deadlines.**
    ```cpp
-   const auto remaining = deadline - TimeControl::millis();
+   const auto remaining = deadline - tc::millis();
    if (remaining <= 0) handleOverdue();   // intuitive
    ```
    With unsigned, an overdue value becomes a huge positive number and the code "waits" for ~49 days. Signed types eliminate that whole class of bug.
@@ -136,9 +156,9 @@ Project code should not have to remember that Tokyo is `9 * 3600`. Pick from the
 
 namespace tz = ungula::core::time::tz;
 
-TimeControl::setTimezone(tz::Timezone::UTC);     // back to UTC (the default)
-TimeControl::setTimezone(tz::Timezone::JST);     // Tokyo  (+9:00)
-TimeControl::setTimezone(tz::Timezone::IST_IN);  // India  (+5:30)
+tc::setTimezone(tz::Timezone::UTC);     // back to UTC (the default)
+tc::setTimezone(tz::Timezone::JST);     // Tokyo  (+9:00)
+tc::setTimezone(tz::Timezone::IST_IN);  // India  (+5:30)
 ```
 
 ##### Example — device deployed in Los Angeles
@@ -152,7 +172,7 @@ Pacific time observes DST: standard `PST_NA` (-8:00) in winter, daylight `PDT_NA
 namespace tz = ungula::core::time::tz;
 
 void applyLosAngelesZone(bool daylightSaving) {
-    TimeControl::setTimezone(daylightSaving ? tz::Timezone::PDT_NA
+    tc::setTimezone(daylightSaving ? tz::Timezone::PDT_NA
                                             : tz::Timezone::PST_NA);
 }
 
@@ -166,7 +186,7 @@ void onEnterDaylightSaving() {
 }
 ```
 
-After the call, `TimeControl::nowLocal()` returns LA wall-clock ms; `TimeControl::nowUtc()` is unaffected.
+After the call, `tc::nowLocal()` returns LA wall-clock ms; `tc::nowUtc()` is unaffected.
 
 ##### Example — device deployed in Barcelona / Spain
 
@@ -176,7 +196,7 @@ Spain follows Central European Time. Winter is `CET` (+1:00), summer is `CEST` (
 namespace tz = ungula::core::time::tz;
 
 void applyBarcelonaZone(bool daylightSaving) {
-    TimeControl::setTimezone(daylightSaving ? tz::Timezone::CEST
+    tc::setTimezone(daylightSaving ? tz::Timezone::CEST
                                             : tz::Timezone::CET);
 }
 
@@ -190,34 +210,34 @@ void setup() {
 If the device is configured for one zone but a single read needs another (e.g. a UI tooltip showing "in Barcelona, that's…" while the host project runs in LA), use `nowInTz()` — it does not touch the stored offset:
 
 ```cpp
-TimeControl::setTimezone(tz::Timezone::PST_NA);  // device is in LA
+tc::setTimezone(tz::Timezone::PST_NA);  // device is in LA
 
-const uint64_t bcnNow = TimeControl::nowInTz(
+const uint64_t bcnNow = tc::nowInTz(
         tz::offsetSeconds(tz::Timezone::CET));    // one-off Barcelona view
-const uint64_t laNow  = TimeControl::nowLocal(); // still LA — unchanged
+const uint64_t laNow  = tc::nowLocal(); // still LA — unchanged
 ```
 
 ##### Inventory
 
 The full mapping lives in `ungula/core/time/timezones.h` as a `constexpr` table — about 40 commonly used abbreviations including UTC/GMT/WET, the European set (CET/CEST/EET/EEST/MSK/BST_UK), the Asia/Pacific set (IST_IN/CST_CN/SGT/JST/KST/AEST/AEDT/ACST/NZST/NZDT), and the Americas (EST/EDT/CST_NA/CDT_NA/MST_NA/MDT_NA/PST_NA/PDT_NA/HST/AKST/AKDT/AST_ATL/BRT/ART). DST-observing zones appear as separate entries (e.g. `PST_NA` and `PDT_NA`) — the application chooses which one is currently active.
 
-`tz::offsetSeconds(zone)` and `tz::abbreviation(zone)` are also exposed for callers that need the values directly without going through `TimeControl`.
+`tz::offsetSeconds(zone)` and `tz::abbreviation(zone)` are also exposed for callers that need the values directly without going through the time API.
 
 ### Pluggable time source (`ungula/core/time/i_time_provider.h`)
 
-`TimeControl::millis()` is always the local monotonic clock. `TimeControl::now()` can be routed through a custom source by installing an `ITimeProvider`. Typical uses: an NTP-synced wall-clock, an external RTC chip, a mock clock in tests.
+`tc::millis()` is always the local monotonic clock. `tc::now()` can be routed through a custom source by installing an `ITimeProvider`. Typical uses: an NTP-synced wall-clock, an external RTC chip, a mock clock in tests.
 
 ```cpp
 #include "ungula/core/time/i_time_provider.h"
 #include "ungula/core/time/time_control.h"
 
 using ungula::core::time::ITimeProvider;
-using ungula::core::time::TimeControl;
+namespace tc = ungula::core::time;
 
 /// Real-world example: a provider fed by the NTP sink elsewhere in the
 /// firmware. Reports a current epoch time when synchronised, and falls
 /// back to "invalid" until the first successful sync — at which point
-/// TimeControl::now() returns the local monotonic clock on its own.
+/// tc::now() returns the local monotonic clock on its own.
 class NtpTimeProvider final : public ITimeProvider {
     public:
         uint64_t nowMs() const override {
@@ -246,16 +266,16 @@ class NtpTimeProvider final : public ITimeProvider {
 NtpTimeProvider g_ntpProvider;
 
 void setup() {
-    TimeControl::setTimeProvider(&g_ntpProvider);
+    tc::setTimeProvider(&g_ntpProvider);
     // now() returns local millis() until the first NTP sample lands.
 }
 ```
 
 Contract:
 
-- The provider must outlive the `setTimeProvider()` call. `TimeControl` stores the pointer, it does not copy.
+- The provider must outlive the `setTimeProvider()` call. the API stores the pointer, it does not copy.
 - `isValid()` is checked on **every** `now()` call — not cached — so a provider can toggle its validity at runtime without re-registering.
-- When `isValid()` returns false, `TimeControl::now()` falls back to the local monotonic clock. No exception, no "frozen" value.
+- When `isValid()` returns false, `tc::now()` falls back to the local monotonic clock. No exception, no "frozen" value.
 - `clearTimeProvider()` removes the provider and restores local-clock behaviour.
 - `micros()` and `nowUs()` are **not** routed through the provider — microsecond-grade external sources are rare enough to not pay for the indirection.
 
@@ -263,7 +283,7 @@ Contract:
 
 ### Formatting (`ungula/core/time/time_format.h`)
 
-Formatting belongs to TimeControl, not to the time *source*. NTP, an RTC chip, or a fake clock all hand back a `time_t` epoch — turning that into "YYYY-MM-DD HH:MM:SS" is the same operation regardless. The pure helper lives in `ungula/core/time/time_format.h` and TimeControl exposes thin wrappers that pass its current state to it.
+Formatting belongs to the time API, not to the time *source*. NTP, an RTC chip, or a fake clock all hand back a `time_t` epoch — turning that into "YYYY-MM-DD HH:MM:SS" is the same operation regardless. The pure helper lives in `ungula/core/time/time_format.h` and `ungula::core::time` exposes thin wrappers that pass its current state to it.
 
 ```cpp
 #include <ungula/core/time/time_control.h>
@@ -271,16 +291,16 @@ Formatting belongs to TimeControl, not to the time *source*. NTP, an RTC chip, o
 
 namespace tz = ungula::core::time::tz;
 
-TimeControl::setTimezone(tz::Timezone::CET);  // device deployed in Barcelona
+tc::setTimezone(tz::Timezone::CET);  // device deployed in Barcelona
 
 char ts[24];
 
 // Current wall-clock time formatted as "YYYY-MM-DD HH:MM:SS":
-TimeControl::formatUtc(ts, sizeof(ts));    // "2026-04-23 14:32:11"
-TimeControl::formatLocal(ts, sizeof(ts));  // "2026-04-23 15:32:11" (CET)
+tc::formatUtc(ts, sizeof(ts));    // "2026-04-23 14:32:11"
+tc::formatLocal(ts, sizeof(ts));  // "2026-04-23 15:32:11" (CET)
 
 // Custom strftime spec, in the configured zone:
-TimeControl::format(ts, sizeof(ts), "%H:%M");  // "15:32"
+tc::formatNow(ts, sizeof(ts), "%H:%M");  // "15:32"
 ```
 
 Contract:
@@ -293,7 +313,7 @@ Contract:
 #include <ungula/core/time/time_format.h>
 
 char ts[24];
-ungula::core::time::time_format::formatIso8601(ts, sizeof(ts), saved_epoch_seconds, /*offset=*/0);
+ungula::core::time::formatIso8601(ts, sizeof(ts), saved_epoch_seconds, /*offset=*/0);
 ```
 
 ## System Control (`ungula/core/system/`)

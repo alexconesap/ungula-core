@@ -4,7 +4,7 @@
 
 #pragma once
 
-/// @brief Host backend for TimeControl — std::chrono monotonic time,
+/// @brief Host backend for the time API — std::chrono monotonic time,
 /// std::this_thread for delays.
 ///
 /// Used for desktop unit tests (no FreeRTOS available). Semantics match
@@ -30,31 +30,32 @@ namespace ungula::core::time::detail {
 }  // namespace ungula::core::time::detail
 
 namespace ungula::core::time {
-    inline TimeControl::tick_ms_t TimeControl::millis() {
+
+    inline tick_ms_t millis() {
         using namespace std::chrono;
         return duration_cast<milliseconds>(steady_clock::now() - detail::hostEpoch()).count();
     }
 
-    inline TimeControl::tick_us_t TimeControl::micros() {
+    inline tick_us_t micros() {
         using namespace std::chrono;
         return duration_cast<microseconds>(steady_clock::now() - detail::hostEpoch()).count();
     }
 
-    inline void TimeControl::delayMs(duration_ms_t msv) {
+    inline void delayMs(duration_ms_t msv) {
         if (msv <= 0) {
             return;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(msv));
     }
 
-    inline void TimeControl::delayUs(duration_us_t usv) {
+    inline void delayUs(duration_us_t usv) {
         if (usv <= 0) {
             return;
         }
         std::this_thread::sleep_for(std::chrono::microseconds(usv));
     }
 
-    inline void TimeControl::delayUntilMs(tick_ms_t& reference, duration_ms_t periodMs) {
+    inline void delayUntilMs(tick_ms_t& reference, duration_ms_t periodMs) {
         if (periodMs <= 0) {
             return;
         }
@@ -68,7 +69,7 @@ namespace ungula::core::time {
         reference = target;
     }
 
-    inline void TimeControl::delayUntilUs(tick_us_t& reference, duration_us_t periodUs) {
+    inline void delayUntilUs(tick_us_t& reference, duration_us_t periodUs) {
         if (periodUs <= 0) {
             return;
         }

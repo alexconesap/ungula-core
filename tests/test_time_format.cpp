@@ -10,7 +10,7 @@
 
 namespace {
 
-    namespace fmt = ungula::core::time::time_format;
+    namespace fmt = ungula::core::time;
 
     // Anchor instant used across the suite. Pure arithmetic via gmtime_r,
     // so the expected strings are stable across hosts and ESP32 builds.

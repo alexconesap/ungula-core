@@ -11,7 +11,7 @@
 #include "time_format.h"
 #include "timezones.h"
 
-/// @brief Platform-abstracted time source.
+/// @brief Platform-abstracted time API as free functions.
 ///
 /// Public API is platform-independent — every project includes this header
 /// exactly the same way. The platform-specific implementation is selected
@@ -25,9 +25,7 @@
 ///
 /// Adding a new platform (STM32, etc.) means creating one more
 /// `platforms/time_control_<name>.h` with inline definitions of the
-/// platform-specific methods, and adding one `#elif` branch below.
-/// No file in this repo needs `#ifdef` branching on platform — each
-/// platform header is pure.
+/// platform-specific functions, and adding one `#elif` branch below.
 ///
 /// ## Time types — int64_t throughout
 ///
@@ -48,246 +46,249 @@
 ///   - `duration_ms_t` / `duration_us_t` — an interval (delay length, etc.)
 ///   - `epoch_ms_t` — a wall-clock instant since the Unix epoch
 /// All are `int64_t`; the names exist to make intent visible at call sites.
+///
+/// ## Usage
+///
+/// ```cpp
+///   #include <ungula/core/time/time_control.h>
+///   namespace tc = ungula::core::time;
+///   tc::delay(2000);
+///   auto t = tc::millis();
+/// ```
+///
+/// Or directly:
+///
+/// ```cpp
+///   ungula::core::time::delay(2000);
+/// ```
 
 namespace ungula::core::time {
 
-    class TimeControl final {
-        public:
-            using tick_ms_t = int64_t;      /// monotonic ms since boot
-            using tick_us_t = int64_t;      /// monotonic us since boot
-            using duration_ms_t = int64_t;  /// delays, intervals, remaining time
-            using duration_us_t = int64_t;
-            using epoch_ms_t = int64_t;  /// Unix epoch ms (signed for delta arithmetic)
+    using tick_ms_t = int64_t;      /// monotonic ms since boot
+    using tick_us_t = int64_t;      /// monotonic us since boot
+    using duration_ms_t = int64_t;  /// delays, intervals, remaining time
+    using duration_us_t = int64_t;
+    using epoch_ms_t = int64_t;  /// Unix epoch ms (signed for delta arithmetic)
 
-            TimeControl() = delete;
-            ~TimeControl() = delete;
-            TimeControl(const TimeControl&) = delete;
-            TimeControl& operator=(const TimeControl&) = delete;
+    namespace detail {
 
-            // ---- Local clock (platform-provided) ----
+        /// Sync offset between local and coordinator clocks.
+        struct SyncState {
+                int64_t offsetMs;
+                int64_t offsetUs;
+                bool active;
+        };
 
-            /// Monotonic millisecond tick since boot. Effectively never wraps.
-            static tick_ms_t millis();
+        // C++17 inline statics — module-private state, single definition
+        // across all TUs that include this header.
+        inline ITimeProvider* provider_ = nullptr;
+        inline SyncState sync_ = {0, 0, false};
+        inline int32_t timezoneOffsetSeconds_ = 0;
 
-            /// Monotonic microsecond tick since boot. Effectively never wraps
-            /// (matches ESP-IDF's native `esp_timer_get_time()` width).
-            static tick_us_t micros();
+    }  // namespace detail
 
-            // ---- Time provider hook ----
+    // ---- Local clock (platform-provided; defined in platform header) ----
 
-            static void setTimeProvider(ITimeProvider* provider) {
-                provider_ = provider;
-            }
-            static void clearTimeProvider() {
-                provider_ = nullptr;
-            }
+    /// Monotonic millisecond tick since boot. Effectively never wraps.
+    tick_ms_t millis();
 
-            /// Provider-aware current time, UTC. Routes through the
-            /// installed ITimeProvider when one is present and reports
-            /// itself valid; otherwise returns the local monotonic
-            /// `millis()` (which is monotonic-since-boot, NOT a real
-            /// wall-clock value, until a provider is installed).
-            ///
-            /// Returns UTC by convention. Use `nowLocal()` for the
-            /// configured timezone, or `nowInTz()` for an arbitrary one.
-            static epoch_ms_t now() {
-                if (provider_ != nullptr && provider_->isValid()) {
-                    return provider_->nowMs();
-                }
-                return millis();
-            }
+    /// Monotonic microsecond tick since boot. Effectively never wraps
+    /// (matches ESP-IDF's native `esp_timer_get_time()` width).
+    tick_us_t micros();
 
-            /// Explicit UTC alias. Same as `now()`.
-            static epoch_ms_t nowUtc() {
-                return now();
-            }
+    // ---- Delays (platform-provided; defined in platform header) ----
 
-            /// Wall-clock in the timezone configured via
-            /// `setTimezoneOffsetSeconds()`. Equals `now()` until that
-            /// setter has been called.
-            static epoch_ms_t nowLocal() {
-                return now() + (static_cast<int64_t>(timezoneOffsetSeconds_) * 1000);
-            }
+    void delayMs(duration_ms_t msv);
+    void delayUs(duration_us_t usv);
 
-            /// Wall-clock in an arbitrary timezone — caller supplies the
-            /// offset in seconds from UTC (e.g. -5 * 3600 for EST). Does
-            /// NOT consult or change the stored offset.
-            static epoch_ms_t nowInTz(int32_t offsetSeconds) {
-                return now() + (static_cast<int64_t>(offsetSeconds) * 1000);
-            }
+    /// Wait until the next periodic boundary, then advance 'reference' by
+    /// periodMs. Drift-free: 'reference' is bumped by the period, not
+    /// reset to now.
+    ///
+    /// Example — run something every 50ms:
+    /// ```cpp
+    ///   auto ref = ungula::core::time::millis();
+    ///   while (running) {
+    ///       readSensors();
+    ///       sendStatus();
+    ///       ungula::core::time::delayUntilMs(ref, 50);
+    ///   }
+    /// ```
+    void delayUntilMs(tick_ms_t& reference, duration_ms_t periodMs);
 
-            /// Set the offset used by `nowLocal()`. Default is 0 (UTC).
-            /// No DST awareness — for that, use the NTP client's
-            /// strftime-based formatters.
-            static void setTimezoneOffsetSeconds(int32_t offsetSeconds) {
-                timezoneOffsetSeconds_ = offsetSeconds;
-            }
+    /// Same idea in microseconds. Best-effort — relies on busy-wait.
+    void delayUntilUs(tick_us_t& reference, duration_us_t periodUs);
 
-            /// Convenience overload — pick a named zone instead of a raw
-            /// offset. Use the entries from `time/timezones.h` so the
-            /// project never hard-codes "what is the offset for Tokyo".
-            static void setTimezone(tz::Timezone zone) {
-                timezoneOffsetSeconds_ = tz::offsetSeconds(zone);
-            }
+    // ---- Time provider hook ----
 
-            static int32_t timezoneOffsetSeconds() {
-                return timezoneOffsetSeconds_;
-            }
+    inline void setTimeProvider(ITimeProvider* provider) {
+        detail::provider_ = provider;
+    }
 
-            /// Alias for micros(). No provider hook — microsecond-grade
-            /// external sources are rare enough that it would pay zero
-            /// users, and the hot path matters for this getter.
-            static tick_us_t nowUs() {
-                return micros();
-            }
+    inline void clearTimeProvider() {
+        detail::provider_ = nullptr;
+    }
 
-            // ---- Formatting ----
-            //
-            // Print the current time as a human-readable string. Returns 0
-            // when no valid time provider is installed — formatting a
-            // monotonic-since-boot tick as a wall-clock date would just
-            // print "1970-01-01 00:00:NN", which is misleading.
+    /// Provider-aware current time, UTC. Routes through the installed
+    /// ITimeProvider when one is present and reports itself valid;
+    /// otherwise returns the local monotonic `millis()` (which is
+    /// monotonic-since-boot, NOT a real wall-clock value, until a
+    /// provider is installed).
+    ///
+    /// Returns UTC by convention. Use `nowLocal()` for the configured
+    /// timezone, or `nowInTz()` for an arbitrary one.
+    inline epoch_ms_t now() {
+        if (detail::provider_ != nullptr && detail::provider_->isValid()) {
+            return detail::provider_->nowMs();
+        }
+        return millis();
+    }
 
-            /// Format current time as "YYYY-MM-DD HH:MM:SS" UTC.
-            /// Buffer must be at least 20 bytes.
-            static size_t formatUtc(char* buf, size_t bufSize) {
-                if (provider_ == nullptr || !provider_->isValid()) {
-                    return 0;
-                }
-                return time_format::formatIso8601(
-                        buf, bufSize, static_cast<time_t>(provider_->nowMs() / 1000), 0);
-            }
+    /// Explicit UTC alias. Same as `now()`.
+    inline epoch_ms_t nowUtc() {
+        return now();
+    }
 
-            /// Format current time as "YYYY-MM-DD HH:MM:SS" in the
-            /// configured local zone (the offset set via `setTimezone()`
-            /// or `setTimezoneOffsetSeconds()`).
-            static size_t formatLocal(char* buf, size_t bufSize) {
-                if (provider_ == nullptr || !provider_->isValid()) {
-                    return 0;
-                }
-                return time_format::formatIso8601(buf, bufSize,
-                                                  static_cast<time_t>(provider_->nowMs() / 1000),
-                                                  timezoneOffsetSeconds_);
-            }
+    /// Wall-clock in the timezone configured via
+    /// `setTimezoneOffsetSeconds()`. Equals `now()` until that setter
+    /// has been called.
+    inline epoch_ms_t nowLocal() {
+        return now() + (static_cast<int64_t>(detail::timezoneOffsetSeconds_) * 1000);
+    }
 
-            /// Format current time with a custom strftime spec, in the
-            /// configured local zone. For arbitrary epoch values + custom
-            /// formats, call `time_format::format()` directly.
-            static size_t format(char* buf, size_t bufSize, const char* strftimeFmt) {
-                if (provider_ == nullptr || !provider_->isValid()) {
-                    return 0;
-                }
-                return time_format::format(buf, bufSize, strftimeFmt,
-                                           static_cast<time_t>(provider_->nowMs() / 1000),
-                                           timezoneOffsetSeconds_);
-            }
+    /// Wall-clock in an arbitrary timezone — caller supplies the offset
+    /// in seconds from UTC (e.g. -5 * 3600 for EST). Does NOT consult or
+    /// change the stored offset.
+    inline epoch_ms_t nowInTz(int32_t offsetSeconds) {
+        return now() + (static_cast<int64_t>(offsetSeconds) * 1000);
+    }
 
-            // ---- Network-synced clock ----
-            // Stores offset between local clock and a remote coordinator's clock.
-            // setSyncTime() is called once per sync event (cheap: one subtraction).
-            // syncNow() is called on every read (cheap: one addition).
+    /// Set the offset used by `nowLocal()`. Default is 0 (UTC). No DST
+    /// awareness — for that, use the NTP client's strftime-based formatters.
+    inline void setTimezoneOffsetSeconds(int32_t offsetSeconds) {
+        detail::timezoneOffsetSeconds_ = offsetSeconds;
+    }
 
-            static void setSyncTime(tick_ms_t remoteMs) {
-                sync_.offsetMs = remoteMs - millis();
-                sync_.active = true;
-            }
+    /// Convenience overload — pick a named zone instead of a raw offset.
+    /// Use the entries from `time/timezones.h` so the project never
+    /// hard-codes "what is the offset for Tokyo".
+    inline void setTimezone(tz::Timezone zone) {
+        detail::timezoneOffsetSeconds_ = tz::offsetSeconds(zone);
+    }
 
-            static void setSyncTimeUs(tick_us_t remoteUs) {
-                sync_.offsetUs = remoteUs - micros();
-                sync_.active = true;
-            }
+    inline int32_t timezoneOffsetSeconds() {
+        return detail::timezoneOffsetSeconds_;
+    }
 
-            static tick_ms_t syncNow() {
-                return millis() + sync_.offsetMs;
-            }
+    /// Alias for micros(). No provider hook — microsecond-grade external
+    /// sources are rare enough that it would pay zero users, and the hot
+    /// path matters for this getter.
+    inline tick_us_t nowUs() {
+        return micros();
+    }
 
-            static tick_us_t syncNowUs() {
-                return micros() + sync_.offsetUs;
-            }
+    // ---- Formatting ----
+    //
+    // Print the current time as a human-readable string. Returns 0 when
+    // no valid time provider is installed — formatting a monotonic-since-
+    // boot tick as a wall-clock date would just print "1970-01-01
+    // 00:00:NN", which is misleading.
 
-            static int64_t syncOffset() {
-                return sync_.offsetMs;
-            }
+    /// Format current time as "YYYY-MM-DD HH:MM:SS" UTC. Buffer must be
+    /// at least 20 bytes.
+    inline size_t formatUtc(char* buf, size_t bufSize) {
+        if (detail::provider_ == nullptr || !detail::provider_->isValid()) {
+            return 0;
+        }
+        return formatIso8601(buf, bufSize, static_cast<time_t>(detail::provider_->nowMs() / 1000),
+                             0);
+    }
 
-            static int64_t syncOffsetUs() {
-                return sync_.offsetUs;
-            }
+    /// Format current time as "YYYY-MM-DD HH:MM:SS" in the configured
+    /// local zone (the offset set via `setTimezone()` or
+    /// `setTimezoneOffsetSeconds()`).
+    inline size_t formatLocal(char* buf, size_t bufSize) {
+        if (detail::provider_ == nullptr || !detail::provider_->isValid()) {
+            return 0;
+        }
+        return formatIso8601(buf, bufSize, static_cast<time_t>(detail::provider_->nowMs() / 1000),
+                             detail::timezoneOffsetSeconds_);
+    }
 
-            static bool isSynced() {
-                return sync_.active;
-            }
+    /// Format current time with a custom strftime spec, in the configured
+    /// local zone. For arbitrary epoch values + custom formats, call the
+    /// 5-arg `format()` directly.
+    inline size_t formatNow(char* buf, size_t bufSize, const char* strftimeFmt) {
+        if (detail::provider_ == nullptr || !detail::provider_->isValid()) {
+            return 0;
+        }
+        return format(buf, bufSize, strftimeFmt,
+                      static_cast<time_t>(detail::provider_->nowMs() / 1000),
+                      detail::timezoneOffsetSeconds_);
+    }
 
-            static void clearSync() {
-                sync_.offsetMs = 0;
-                sync_.offsetUs = 0;
-                sync_.active = false;
-            }
+    // ---- Network-synced clock ----
+    // Stores offset between local clock and a remote coordinator's clock.
+    // setSyncTime() is called once per sync event (cheap: one subtraction).
+    // syncNow() is called on every read (cheap: one addition).
 
-            // ---- Delays (platform-provided) ----
+    inline void setSyncTime(tick_ms_t remoteMs) {
+        detail::sync_.offsetMs = remoteMs - millis();
+        detail::sync_.active = true;
+    }
 
-            /// Alias for delayMs(). Kept for source-compat with callers
-            /// that used `delay()` originally.
-            static void delay(duration_ms_t msv) {
-                delayMs(msv);
-            }
+    inline void setSyncTimeUs(tick_us_t remoteUs) {
+        detail::sync_.offsetUs = remoteUs - micros();
+        detail::sync_.active = true;
+    }
 
-            static void delayMs(duration_ms_t msv);
-            static void delayUs(duration_us_t usv);
+    inline tick_ms_t syncNow() {
+        return millis() + detail::sync_.offsetMs;
+    }
 
-            /// Wait until the next periodic boundary, then advance
-            /// 'reference' by periodMs. Drift-free: 'reference' is bumped
-            /// by the period, not reset to now.
-            ///
-            /// Example — run something every 50ms:
-            /// ```cpp
-            ///   auto ref = TimeControl::millis();
-            ///   while (running) {
-            ///       readSensors();
-            ///       sendStatus();
-            ///       TimeControl::delayUntilMs(ref, 50);
-            ///   }
-            /// ```
-            static void delayUntilMs(tick_ms_t& reference, duration_ms_t periodMs);
+    inline tick_us_t syncNowUs() {
+        return micros() + detail::sync_.offsetUs;
+    }
 
-            /// Same idea in microseconds. Best-effort — relies on busy-wait.
-            static void delayUntilUs(tick_us_t& reference, duration_us_t periodUs);
+    inline int64_t syncOffset() {
+        return detail::sync_.offsetMs;
+    }
 
-            /// Cooperative yield. Prefer this over `delayMs(0)` for intent.
-            static void yield() {
-                delayMs(0);
-            }
+    inline int64_t syncOffsetUs() {
+        return detail::sync_.offsetUs;
+    }
 
-        private:
-            // Direct signed comparison — no clever unsigned-overflow trick
-            // is needed once we're on int64_t. `now >= target` IS the test.
-            static bool hasReachedMs(tick_ms_t now, tick_ms_t target) {
-                return now >= target;
-            }
-            static bool hasReachedUs(tick_us_t now, tick_us_t target) {
-                return now >= target;
-            }
+    inline bool isSynced() {
+        return detail::sync_.active;
+    }
 
-            /// Sync offset between local and coordinator clocks.
-            struct SyncState {
-                    int64_t offsetMs;
-                    int64_t offsetUs;
-                    bool active;
-            };
+    inline void clearSync() {
+        detail::sync_.offsetMs = 0;
+        detail::sync_.offsetUs = 0;
+        detail::sync_.active = false;
+    }
 
-            // C++17 inline static — storage lives here, no companion .cpp needed.
-            inline static ITimeProvider* provider_ = nullptr;
-            inline static SyncState sync_ = {0, 0, false};
-            inline static int32_t timezoneOffsetSeconds_ = 0;
-    };
+    // ---- Convenience delays ----
+
+    /// Alias for delayMs(). Kept short so call sites read naturally:
+    ///   `ungula::core::time::delay(2000);`
+    inline void delay(duration_ms_t msv) {
+        delayMs(msv);
+    }
+
+    /// Cooperative yield. Prefer this over `delay(0)` for intent.
+    inline void yield() {
+        delayMs(0);
+    }
 
 }  // namespace ungula::core::time
-// ---- Platform dispatch ----
-// Each platform header contains inline definitions of the
-// platform-specific methods (millis, micros, delay*, delayUntil*).
-// No cross-platform #ifdefs inside those files — each is pure for
-// its target.
 
-#if defined(ESP_PLATFORM)
+// ---- Platform dispatch ----
+// Each platform header contains inline definitions of the platform-
+// specific functions (millis, micros, delay*, delayUntil*). No
+// cross-platform #ifdefs inside those files — each is pure for its target.
+
+#ifdef ESP_PLATFORM
 #include "platforms/time_control_esp32.h"
 #else
 #include "platforms/time_control_host.h"
