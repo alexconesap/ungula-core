@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace ungula {
+namespace ungula::core::util {
 
     /// Compute CRC32 for a single byte (standard polynomial 0xEDB88320).
     inline uint32_t crc32_byte(uint32_t crc, uint8_t byte) {
@@ -29,4 +29,4 @@ namespace ungula {
         return crc ^ 0xFFFFFFFFu;
     }
 
-}  // namespace ungula
+}  // namespace ungula::core::util

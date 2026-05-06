@@ -18,19 +18,18 @@
 #include <chrono>
 #include <thread>
 
-namespace ungula {
+namespace ungula::core::time::detail {
 
-    namespace detail {
+    // Fixed epoch captured on first call. Makes millis()/micros() start
+    // near zero at program boot instead of std::chrono's arbitrary base.
+    inline std::chrono::steady_clock::time_point hostEpoch() {
+        static const auto epoch = std::chrono::steady_clock::now();
+        return epoch;
+    }
 
-        // Fixed epoch captured on first call. Makes millis()/micros() start
-        // near zero at program boot instead of std::chrono's arbitrary base.
-        inline std::chrono::steady_clock::time_point hostEpoch() {
-            static const auto epoch = std::chrono::steady_clock::now();
-            return epoch;
-        }
+}  // namespace ungula::core::time::detail
 
-    }  // namespace detail
-
+namespace ungula::core::time {
     inline TimeControl::tick_ms_t TimeControl::millis() {
         using namespace std::chrono;
         return duration_cast<milliseconds>(steady_clock::now() - detail::hostEpoch()).count();
@@ -81,4 +80,4 @@ namespace ungula {
         reference = target;
     }
 
-}  // namespace ungula
+}  // namespace ungula::core::time

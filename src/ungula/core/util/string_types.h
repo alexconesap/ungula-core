@@ -16,7 +16,7 @@
 #include <string_view>
 #include <vector>
 
-namespace ungula {
+namespace ungula::core::util {
 
     using string_t = std::string;
     using string_vector_t = std::vector<string_t>;
@@ -24,4 +24,4 @@ namespace ungula {
     using vector_string_t = std::vector<string_t>;
     using vector_string_view_t = std::vector<string_view_t>;
 
-}  // namespace ungula
+}  // namespace ungula::core::util

@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include <util/types.h>
+#include <ungula/core/util/types.h>
 #include <cmath>
 
 // Test code is allowed `using namespace`; library code is not.
-using namespace ungula;
+using namespace ungula::core::util;
 
 // --- Temperature conversion ---
 

@@ -13,27 +13,27 @@ Ultimately, my goal is to port 100% of the code from one hardware platform for e
 In your Arduino `.ino` file:
 
 ```cpp
-#include <ungula_core.h>
+#include <ungula/core.h>
 ```
 
 Then include whatever component you need in your code:
 
 ```cpp
-#include "preferences/core/i_preferences.h"
-#include "util/string_utils.h"
-#include "util/queue.h"
-#include "util/crc32.h"
-#include "time/time_control.h"
-#include "system/system_reboot.h"
+#include "ungula/core/preferences/core/i_preferences.h"
+#include "ungula/core/util/string_utils.h"
+#include "ungula/core/util/queue.h"
+#include "ungula/core/util/crc32.h"
+#include "ungula/core/time/time_control.h"
+#include "ungula/core/system/system_reboot.h"
 ...
 ```
 
-## Time Control (`time/`)
+## Time Control (`ungula/core/time/`)
 
 Portable time abstraction. All static methods, no instantiation needed. `time_control.h` is the only header your code ever includes; it dispatches to a platform-specific backend at build time:
 
 ```text
-time/
+ungula/core/time/
   time_control.h                       # public API (unchanged)
   i_time_provider.h                    # pluggable clock source
   platforms/
@@ -48,9 +48,9 @@ Selection happens at the bottom of `time_control.h` via a single `#if defined(ES
 This is the main use case. Instead of doing `delay(10)` at the end of a loop (which accumulates drift from the work time), use `delayUntilMs`. It advances the reference by the period, not by "now + period", so you get consistent timing:
 
 ```cpp
-#include "time/time_control.h"
+#include "ungula/core/time/time_control.h"
 
-using ungula::TimeControl;
+using ungula::core::time::TimeControl;
 
 auto ref = TimeControl::millis();
 while (running) {
@@ -126,15 +126,15 @@ The three aliases exist to make intent visible — same width, different meaning
 - `duration_ms_t` — an interval (delay length, remaining time).
 - `epoch_ms_t` — a wall-clock instant since the Unix epoch.
 
-#### Named timezones (`time/timezones.h`)
+#### Named timezones (`ungula/core/time/timezones.h`)
 
 Project code should not have to remember that Tokyo is `9 * 3600`. Pick from the `Timezone` enum and pass it to `setTimezone()`. UTC is the default — call this only if the device should report wall time in some other zone.
 
 ```cpp
-#include <time/time_control.h>
-#include <time/timezones.h>
+#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/timezones.h>
 
-namespace tz = ungula::tz;
+namespace tz = ungula::core::time::tz;
 
 TimeControl::setTimezone(tz::Timezone::UTC);     // back to UTC (the default)
 TimeControl::setTimezone(tz::Timezone::JST);     // Tokyo  (+9:00)
@@ -146,10 +146,10 @@ TimeControl::setTimezone(tz::Timezone::IST_IN);  // India  (+5:30)
 Pacific time observes DST: standard `PST_NA` (-8:00) in winter, daylight `PDT_NA` (-7:00) in summer. The library does not switch automatically — the application picks which one is in effect. Wire the choice to whatever signal makes sense for the project (a button, a config value, an NTP-derived `tm_isdst` flag, a date check):
 
 ```cpp
-#include <time/time_control.h>
-#include <time/timezones.h>
+#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/timezones.h>
 
-namespace tz = ungula::tz;
+namespace tz = ungula::core::time::tz;
 
 void applyLosAngelesZone(bool daylightSaving) {
     TimeControl::setTimezone(daylightSaving ? tz::Timezone::PDT_NA
@@ -173,7 +173,7 @@ After the call, `TimeControl::nowLocal()` returns LA wall-clock ms; `TimeControl
 Spain follows Central European Time. Winter is `CET` (+1:00), summer is `CEST` (+2:00). Same pattern:
 
 ```cpp
-namespace tz = ungula::tz;
+namespace tz = ungula::core::time::tz;
 
 void applyBarcelonaZone(bool daylightSaving) {
     TimeControl::setTimezone(daylightSaving ? tz::Timezone::CEST
@@ -199,20 +199,20 @@ const uint64_t laNow  = TimeControl::nowLocal(); // still LA — unchanged
 
 ##### Inventory
 
-The full mapping lives in `time/timezones.h` as a `constexpr` table — about 40 commonly used abbreviations including UTC/GMT/WET, the European set (CET/CEST/EET/EEST/MSK/BST_UK), the Asia/Pacific set (IST_IN/CST_CN/SGT/JST/KST/AEST/AEDT/ACST/NZST/NZDT), and the Americas (EST/EDT/CST_NA/CDT_NA/MST_NA/MDT_NA/PST_NA/PDT_NA/HST/AKST/AKDT/AST_ATL/BRT/ART). DST-observing zones appear as separate entries (e.g. `PST_NA` and `PDT_NA`) — the application chooses which one is currently active.
+The full mapping lives in `ungula/core/time/timezones.h` as a `constexpr` table — about 40 commonly used abbreviations including UTC/GMT/WET, the European set (CET/CEST/EET/EEST/MSK/BST_UK), the Asia/Pacific set (IST_IN/CST_CN/SGT/JST/KST/AEST/AEDT/ACST/NZST/NZDT), and the Americas (EST/EDT/CST_NA/CDT_NA/MST_NA/MDT_NA/PST_NA/PDT_NA/HST/AKST/AKDT/AST_ATL/BRT/ART). DST-observing zones appear as separate entries (e.g. `PST_NA` and `PDT_NA`) — the application chooses which one is currently active.
 
 `tz::offsetSeconds(zone)` and `tz::abbreviation(zone)` are also exposed for callers that need the values directly without going through `TimeControl`.
 
-### Pluggable time source (`time/i_time_provider.h`)
+### Pluggable time source (`ungula/core/time/i_time_provider.h`)
 
 `TimeControl::millis()` is always the local monotonic clock. `TimeControl::now()` can be routed through a custom source by installing an `ITimeProvider`. Typical uses: an NTP-synced wall-clock, an external RTC chip, a mock clock in tests.
 
 ```cpp
-#include "time/i_time_provider.h"
-#include "time/time_control.h"
+#include "ungula/core/time/i_time_provider.h"
+#include "ungula/core/time/time_control.h"
 
-using ungula::ITimeProvider;
-using ungula::TimeControl;
+using ungula::core::time::ITimeProvider;
+using ungula::core::time::TimeControl;
 
 /// Real-world example: a provider fed by the NTP sink elsewhere in the
 /// firmware. Reports a current epoch time when synchronised, and falls
@@ -261,15 +261,15 @@ Contract:
 
 `ITimeProvider` is independent from the `setSyncTime()` / `syncNow()` pair. The sync clock stores a fixed offset to a coordinator's millisecond timestamp; the provider replaces the clock source entirely. Pick one, not both, per deployment.
 
-### Formatting (`time/time_format.h`)
+### Formatting (`ungula/core/time/time_format.h`)
 
-Formatting belongs to TimeControl, not to the time *source*. NTP, an RTC chip, or a fake clock all hand back a `time_t` epoch — turning that into "YYYY-MM-DD HH:MM:SS" is the same operation regardless. The pure helper lives in `time/time_format.h` and TimeControl exposes thin wrappers that pass its current state to it.
+Formatting belongs to TimeControl, not to the time *source*. NTP, an RTC chip, or a fake clock all hand back a `time_t` epoch — turning that into "YYYY-MM-DD HH:MM:SS" is the same operation regardless. The pure helper lives in `ungula/core/time/time_format.h` and TimeControl exposes thin wrappers that pass its current state to it.
 
 ```cpp
-#include <time/time_control.h>
-#include <time/timezones.h>
+#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/timezones.h>
 
-namespace tz = ungula::tz;
+namespace tz = ungula::core::time::tz;
 
 TimeControl::setTimezone(tz::Timezone::CET);  // device deployed in Barcelona
 
@@ -290,30 +290,30 @@ Contract:
 - For arbitrary epoch values (formatting a stored timestamp from somewhere else, not "right now"), call `time_format::format()` / `formatIso8601()` directly — same helpers, but you supply the epoch yourself.
 
 ```cpp
-#include <time/time_format.h>
+#include <ungula/core/time/time_format.h>
 
 char ts[24];
-ungula::time_format::formatIso8601(ts, sizeof(ts), saved_epoch_seconds, /*offset=*/0);
+ungula::core::time::time_format::formatIso8601(ts, sizeof(ts), saved_epoch_seconds, /*offset=*/0);
 ```
 
-## System Control (`system/`)
+## System Control (`ungula/core/system/`)
 
 ```cpp
-using ungula::SystemControl;
+using ungula::core::system::SystemControl;
 
 SystemControl::reboot();
 SystemControl::rebootAfterMs(500);  // wait 500ms then reboot
 ```
 
-### Chip Info (`system/chip_info.h`)
+### Chip Info (`ungula/core/system/chip_info.h`)
 
 Query the MCU at boot to log hardware details. The header is portable (plain struct, no SDK types). The implementation calls ESP-IDF internally.
 
 ```cpp
-#include <system/chip_info.h>
+#include <ungula/core/system/chip_info.h>
 
 void setup() {
-    ungula::ChipInfo chip = ungula::queryChipInfo();
+    ungula::core::system::ChipInfo chip = ungula::core::system::queryChipInfo();
     log_info("MCU: %s rev%d, %d cores, IDF %s",
              chip.model, chip.revision, chip.cores, chip.sdkVersion);
     log_info("Features: %s", chip.features);
@@ -328,22 +328,22 @@ Fields: `model`, `sdkVersion`, `features` (human-readable string), `cores`, `rev
 
 ## Utilities
 
-### CRC32 (`util/crc32.h`)
+### CRC32 (`ungula/core/util/crc32.h`)
 
 ```cpp
-uint32_t checksum = ungula::crc32(data, len);
+uint32_t checksum = ungula::core::util::crc32(data, len);
 ```
 
 Standard polynomial `0xEDB88320`. No lookup table (saves RAM). See the Preferences section above for a real-world usage example.
 
-### Queue (`util/queue.h`)
+### Queue (`ungula/core/util/queue.h`)
 
-Fixed-size circular queue, templated. Does not allocate on the heap. Lives in `ungula::`.
+Fixed-size circular queue, templated. Does not allocate on the heap. Lives in `ungula::core::util`.
 
 ```cpp
-#include <util/queue.h>
+#include <ungula/core/util/queue.h>
 
-ungula::Queue<int, 10> q;       // or: using ungula::Queue;
+ungula::core::util::Queue<int, 10> q;       // or: using ungula::core::util::Queue;
 q.push(42);
 int val;
 q.pop(val);   // val = 42
@@ -354,43 +354,43 @@ q.isEmpty();
 q.clear();
 ```
 
-### String Utilities (`util/string_utils.h`)
+### String Utilities (`ungula/core/util/string_utils.h`)
 
-Namespace `ungula::str`. Manipulation helpers: `trim`, `to_lower`, `to_upper`, `startsWith`, `replaceAll`, `tokenizeByDelimiter`, `escapeString`, `countChar`, `num_to_string`.
+Namespace `ungula::core::util::str`. Manipulation helpers: `trim`, `to_lower`, `to_upper`, `startsWith`, `replaceAll`, `tokenizeByDelimiter`, `escapeString`, `countChar`, `num_to_string`.
 
 ```cpp
-#include <util/string_utils.h>
+#include <ungula/core/util/string_utils.h>
 
-ungula::string_t s = "  hello  ";
-ungula::str::trim(s);                                  // "hello"
-auto upper = ungula::str::as_upper(s);                 // "HELLO"
-auto parts = ungula::str::tokenizeByDelimiter("a,b,c", ',');
+ungula::core::util::string_t s = "  hello  ";
+ungula::core::util::str::trim(s);                                  // "hello"
+auto upper = ungula::core::util::str::as_upper(s);                 // "HELLO"
+auto parts = ungula::core::util::str::tokenizeByDelimiter("a,b,c", ',');
 ```
 
-### String types (`util/string_types.h`)
+### String types (`ungula/core/util/string_types.h`)
 
-Project-wide aliases live in `ungula::`: `string_t` (`std::string`), `string_view_t` (`std::string_view`), `vector_string_t`, `vector_string_view_t`. Code already inside `namespace ungula { ... }` finds them unqualified; everything else uses `ungula::string_t` etc.
+Project-wide aliases live in `ungula::core::util`: `string_t` (`std::string`), `string_view_t` (`std::string_view`), `vector_string_t`, `vector_string_view_t`. Code already inside `namespace ungula::core::util { ... }` finds them unqualified; everything else uses `ungula::core::util::string_t` etc.
 
-### Temperature & Math (`util/types.h`)
+### Temperature & Math (`ungula/core/util/types.h`)
 
-Both nested under `ungula::`.
+Both nested under `ungula::core::util`.
 
 ```cpp
-#include <util/types.h>
+#include <ungula/core/util/types.h>
 
-double f = ungula::temperature::celsiusToFahrenheit(100.0);  // 212.0
-double c = ungula::temperature::fahrenheitToCelsius(600.0);  // 315.56
-bool ok  = ungula::temperature::isValidTemperature(300.0);   // true (finite && [-200, 1800))
+double f = ungula::core::util::temp::celsiusToFahrenheit(100.0);  // 212.0
+double c = ungula::core::util::temp::fahrenheitToCelsius(600.0);  // 315.56
+bool ok  = ungula::core::util::temp::isValidTemperature(300.0);   // true (finite && [-200, 1800))
 
-int16_t wire = ungula::temp::packCelsius(25.5f);   // 255 — wire format
-float recovered = ungula::temp::unpackCelsius(wire); // 25.5f
+int16_t wire = ungula::core::util::temp::packCelsius(25.5f);   // 255 — wire format
+float recovered = ungula::core::util::temp::unpackCelsius(wire); // 25.5f
 
-double v = ungula::math::clamp(1.5, 0.0, 1.0);   // 1.0
-double t = ungula::math::lerp(0.0, 100.0, 0.5);  // 50.0
+double v = ungula::core::util::math::clamp(1.5, 0.0, 1.0);   // 1.0
+double t = ungula::core::util::math::lerp(0.0, 100.0, 0.5);  // 50.0
 
 // In-place variants modify the value by reference:
 double x = 1.5;
-ungula::math::clamp_v(x, 0.0, 1.0);  // x == 1.0
+ungula::core::util::math::clamp_v(x, 0.0, 1.0);  // x == 1.0
 ```
 
 `packCelsius` / `unpackCelsius` encode temperature as `int16_t` (celsius
@@ -401,7 +401,7 @@ float. Both handle negative values correctly.
 `clamp` return the clamped value without touching the
 input. `clamp01` and `lerp` are also available.
 
-## Preferences (`preferences/`)
+## Preferences (`ungula/core/preferences/`)
 
 ### Persistent Key-Value Storage
 
@@ -412,9 +412,9 @@ input. `clamp01` and `lerp` are also available.
 Other implementations can be created against the same interface, so your application code does not care which one is behind it.
 
 ```cpp
-#include "preferences/esp32_preferences.h"
+#include "ungula/core/preferences/esp32_preferences.h"
 
-ungula::Esp32Preferences prefs;
+ungula::core::preferences::Esp32Preferences prefs;
 // or: any other implementation you can create
 
 void saveDeviceConfig(const char* name, uint32_t bootCount) {
@@ -438,7 +438,7 @@ void loadDeviceConfig() {
 Storing a struct with CRC validation:
 
 ```cpp
-#include "util/crc32.h"
+#include "ungula/core/util/crc32.h"
 
 struct Settings {
     uint16_t speed;
@@ -448,7 +448,7 @@ struct Settings {
 
 void saveSettings(const Settings& s) {
     Settings copy = s;
-    copy.crc = ungula::crc32(reinterpret_cast<const uint8_t*>(&copy), offsetof(Settings, crc));
+    copy.crc = ungula::core::util::crc32(reinterpret_cast<const uint8_t*>(&copy), offsetof(Settings, crc));
 
     prefs.begin("settings");
     prefs.putBytes("data", reinterpret_cast<const uint8_t*>(&copy), sizeof(copy));
@@ -461,7 +461,7 @@ bool loadSettings(Settings& out) {
     prefs.end();
 
     if (n != sizeof(out)) return false;
-    uint32_t expected = ungula::crc32(reinterpret_cast<const uint8_t*>(&out), offsetof(Settings, crc));
+    uint32_t expected = ungula::core::util::crc32(reinterpret_cast<const uint8_t*>(&out), offsetof(Settings, crc));
     return out.crc == expected;
 }
 ```
@@ -473,7 +473,7 @@ bool loadSettings(Settings& out) {
 Your project defines the struct, the store handles persistence:
 
 ```cpp
-#include <preferences/programs/program_store.h>
+#include <ungula/core/preferences/programs/program_store.h>
 
 // Project-specific recipe struct — any fields you need
 struct MyRecipe {
@@ -493,7 +493,7 @@ struct MyRecipe {
 };
 
 // 8 recipe slots, persisted in NVS namespace "programs"
-ungula::ProgramStore<MyRecipe, 8> store(prefs);
+ungula::core::preferences::programs::ProgramStore<MyRecipe, 8> store(prefs);
 
 void setup() {
     store.init("DEFAULT", MyRecipe::createDefault);

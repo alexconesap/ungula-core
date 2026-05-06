@@ -14,7 +14,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace ungula {
+namespace ungula::core::util {
 
     template <typename T, size_t Capacity>
     class Queue {
@@ -80,4 +80,4 @@ namespace ungula {
             }
     };
 
-}  // namespace ungula
+}  // namespace ungula::core::util

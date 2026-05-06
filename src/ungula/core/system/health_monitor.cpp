@@ -2,9 +2,9 @@
 // Copyright (c) 2024-2026 Alex Conesa
 // See LICENSE file for details.
 
-#include "system/health_monitor.h"
+#include "ungula/core/system/health_monitor.h"
 
-#include "time/time_control.h"
+#include "ungula/core/time/time_control.h"
 
 #if defined(ESP_PLATFORM)
 #include "esp_heap_caps.h"
@@ -13,7 +13,7 @@
 // caller still sees a valid sample with delta=0 forever.
 #endif
 
-namespace ungula {
+namespace ungula::core::system {
 
     namespace {
 
@@ -63,4 +63,4 @@ namespace ungula {
         last_free_ = 0;
     }
 
-}  // namespace ungula
+}  // namespace ungula::core::system

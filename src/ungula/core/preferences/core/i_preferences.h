@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace ungula {
+namespace ungula::core::preferences {
 
     /// Abstract interface for persistent key-value storage
     class IPreferences {
@@ -58,4 +58,4 @@ namespace ungula {
             virtual bool hasKey(const char* key) const = 0;
     };
 
-}  // namespace ungula
+}  // namespace ungula::core::preferences

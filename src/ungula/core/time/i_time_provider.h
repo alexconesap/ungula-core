@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 
-namespace ungula {
+namespace ungula::core::time {
 
     /// @brief Pluggable source of absolute wall-clock time in milliseconds.
     ///
@@ -40,4 +40,4 @@ namespace ungula {
             virtual bool isValid() const = 0;
     };
 
-}  // namespace ungula
+}  // namespace ungula::core::time

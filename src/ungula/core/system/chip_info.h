@@ -11,7 +11,7 @@
 /// Populated at boot by a platform-specific implementation.
 /// Portable struct — no SDK types in the interface.
 
-namespace ungula {
+namespace ungula::core::system {
 
     constexpr uint8_t CHIP_MODEL_MAX_LEN = 24;
     constexpr uint8_t SDK_VERSION_MAX_LEN = 24;
@@ -32,4 +32,4 @@ namespace ungula {
     /// @brief Query current MCU info. Platform-specific implementation.
     ChipInfo queryChipInfo();
 
-}  // namespace ungula
+}  // namespace ungula::core::system

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include <util/queue.h>
+#include <ungula/core/util/queue.h>
 
-using ungula::Queue;
+using ungula::core::util::Queue;
 
 TEST(Queue, EmptyOnCreation) {
     Queue<int, 5> q;

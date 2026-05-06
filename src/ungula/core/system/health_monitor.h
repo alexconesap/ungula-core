@@ -36,7 +36,7 @@
 //     }
 //   }
 
-namespace ungula {
+namespace ungula::core::system {
 
     struct HealthSample {
             uint32_t free_heap;      // current free bytes (default heap caps)
@@ -68,4 +68,4 @@ namespace ungula {
             bool first_ = true;
     };
 
-}  // namespace ungula
+}  // namespace ungula::core::system

@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include <time/i_time_provider.h>
-#include <time/time_control.h>
-#include <time/timezones.h>
+#include <ungula/core/time/i_time_provider.h>
+#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/timezones.h>
 
 #include <cstdint>
 #include <cstring>
@@ -15,9 +15,9 @@
 
 namespace {
 
-    using ungula::ITimeProvider;
-    using ungula::TimeControl;
-    namespace tz = ungula::tz;
+    using ungula::core::time::ITimeProvider;
+    using ungula::core::time::TimeControl;
+    namespace tz = ungula::core::time::tz;
 
     // Scripted provider that lets the test control both the reported time
     // and whether the provider reports itself valid. Used to exercise every

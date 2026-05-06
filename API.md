@@ -18,9 +18,9 @@ directly when only part of the surface is needed.
 ### Use case: Drift-free periodic loop
 
 ```cpp
-#include <ungula_core.h>
+#include <ungula/core.h>
 
-using ungula::TimeControl;
+using ungula::core::time::TimeControl;
 
 void setup() {}
 
@@ -40,9 +40,9 @@ inside the loop does not accumulate.
 ### Use case: Microsecond-grade sleep
 
 ```cpp
-#include <time/time_control.h>
+#include <ungula/core/time/time_control.h>
 
-ungula::TimeControl::delayUs(250);   // ~250 µs busy-wait on ESP32
+ungula::core::time::TimeControl::delayUs(250);   // ~250 µs busy-wait on ESP32
 ```
 
 When to use this: bit-banging, short hardware-timing windows. Prefer
@@ -51,10 +51,10 @@ When to use this: bit-banging, short hardware-timing windows. Prefer
 ### Use case: Wall-clock time via a pluggable provider
 
 ```cpp
-#include <time/time_control.h>
-#include <time/i_time_provider.h>
+#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/i_time_provider.h>
 
-class NtpClock : public ungula::ITimeProvider {
+class NtpClock : public ungula::core::time::ITimeProvider {
     public:
         int64_t nowMs() const override { return epochMs_; }
         bool    isValid() const override { return synced_; }
@@ -67,13 +67,13 @@ class NtpClock : public ungula::ITimeProvider {
 static NtpClock clock;
 
 void setup() {
-    ungula::TimeControl::setTimeProvider(&clock);
-    ungula::TimeControl::setTimezone(ungula::tz::Timezone::CET);
+    ungula::core::time::TimeControl::setTimeProvider(&clock);
+    ungula::core::time::TimeControl::setTimezone(ungula::core::time::tz::Timezone::CET);
 }
 
 void printNow() {
     char buf[20];
-    if (ungula::TimeControl::formatLocal(buf, sizeof(buf)) > 0) {
+    if (ungula::core::time::TimeControl::formatLocal(buf, sizeof(buf)) > 0) {
         // buf == "2026-04-26 14:32:01"
     }
 }
@@ -86,9 +86,9 @@ falls back to monotonic-since-boot.
 ### Use case: Persisted key-value preferences (ESP32)
 
 ```cpp
-#include <preferences/core/esp32_preferences.h>
+#include <ungula/core/preferences/core/esp32_preferences.h>
 
-ungula::Esp32Preferences prefs;
+ungula::core::preferences::Esp32Preferences prefs;
 
 void saveSsid(const char* ssid) {
     if (!prefs.begin("wifi")) return;
@@ -110,8 +110,8 @@ names are limited to 15 characters by NVS.
 ### Use case: Versioned program/recipe slots with CRC
 
 ```cpp
-#include <preferences/core/esp32_preferences.h>
-#include <preferences/programs/program_store.h>
+#include <ungula/core/preferences/core/esp32_preferences.h>
+#include <ungula/core/preferences/programs/program_store.h>
 
 struct Recipe {
     char  name[32];
@@ -129,8 +129,8 @@ static Recipe defaultRecipe(const char* name) {
     return r;
 }
 
-ungula::Esp32Preferences           prefs;
-ungula::ProgramStore<Recipe, 10>   store(prefs);
+ungula::core::preferences::Esp32Preferences           prefs;
+ungula::core::preferences::programs::ProgramStore<Recipe, 10>   store(prefs);
 
 void setup() {
     store.init("DEFAULT", &defaultRecipe);
@@ -149,9 +149,9 @@ any slot that fails verification on load.
 ### Use case: Fixed-capacity queue (no heap)
 
 ```cpp
-#include <util/queue.h>
+#include <ungula/core/util/queue.h>
 
-ungula::Queue<int, 16> q;
+ungula::core::util::Queue<int, 16> q;
 
 void onIrq(int sample) {
     q.push(sample);          // false if full — caller decides
@@ -171,10 +171,10 @@ bounded buffer where heap allocation is forbidden.
 ### Use case: String helpers
 
 ```cpp
-#include <util/string_utils.h>
+#include <ungula/core/util/string_utils.h>
 
-using ungula::string_t;
-using namespace ungula::str;
+using ungula::core::util::string_t;
+using namespace ungula::core::util::str;
 
 string_t s = "  Hello, World  ";
 trim(s);                                     // "Hello, World"
@@ -186,30 +186,30 @@ auto parts = tokenizeByDelimiter(s, ',');    // ["hello", " ungula"]
 ### Use case: CRC32 of a buffer
 
 ```cpp
-#include <util/crc32.h>
+#include <ungula/core/util/crc32.h>
 
 uint8_t payload[] = { 0x01, 0x02, 0x03, 0x04 };
-uint32_t crc = ungula::crc32(payload, sizeof(payload));
+uint32_t crc = ungula::core::util::crc32(payload, sizeof(payload));
 ```
 
 ### Use case: Reboot the MCU
 
 ```cpp
-#include <system/system_reboot.h>
+#include <ungula/core/system/system_reboot.h>
 
-ungula::SystemControl::reboot();              // immediate
-ungula::SystemControl::rebootAfterMs(2000);   // give logs time to flush
+ungula::core::system::SystemControl::reboot();              // immediate
+ungula::core::system::SystemControl::rebootAfterMs(2000);   // give logs time to flush
 ```
 
 ### Use case: Heap-leak watchdog
 
 ```cpp
-#include <system/health_monitor.h>
+#include <ungula/core/system/health_monitor.h>
 
-static ungula::HealthMonitor health;
+static ungula::core::system::HealthMonitor health;
 
 void loop() {
-    ungula::HealthSample s;
+    ungula::core::system::HealthSample s;
     if (health.sample(60'000, s)) {
         // emit s.free_heap, s.min_free_heap, s.delta, s.uptime_ms
     }
@@ -222,10 +222,10 @@ When to use this: long-running firmware. A monotonically falling
 ### Use case: Identify the MCU at boot
 
 ```cpp
-#include <system/chip_info.h>
+#include <ungula/core/system/chip_info.h>
 
 void printBootBanner() {
-    ungula::ChipInfo info = ungula::queryChipInfo();
+    ungula::core::system::ChipInfo info = ungula::core::system::queryChipInfo();
     // info.model, info.sdkVersion, info.cores, info.hasWifi, ...
 }
 ```
@@ -236,17 +236,17 @@ void printBootBanner() {
 
 | Type | Header | Purpose |
 | ---- | ------ | ------- |
-| `ungula::TimeControl` | `time/time_control.h` | Static-only time/delay facade |
-| `ungula::ITimeProvider` | `time/i_time_provider.h` | Pluggable wall-clock source |
-| `ungula::tz::Timezone` (enum) | `time/timezones.h` | Named UTC offset codes |
-| `ungula::IPreferences` | `preferences/core/i_preferences.h` | Abstract NVS interface |
-| `ungula::Esp32Preferences` | `preferences/core/esp32_preferences.h` | ESP-IDF NVS implementation |
-| `ungula::ProgramStore<T, N>` | `preferences/programs/program_store.h` | CRC-checked recipe slot table |
-| `ungula::Queue<T, Capacity>` | `util/queue.h` | Fixed-capacity circular queue |
-| `ungula::SystemControl` | `system/system_reboot.h` | Reboot helpers |
-| `ungula::HealthMonitor` / `HealthSample` | `system/health_monitor.h` | Heap sampler |
-| `ungula::ChipInfo` | `system/chip_info.h` | MCU identity struct |
-| `ungula::string_t`, `string_view_t`, `vector_string_t` | `util/string_types.h` | std-aliases used across all libraries |
+| `ungula::core::time::TimeControl` | `ungula/core/time/time_control.h` | Static-only time/delay facade |
+| `ungula::core::time::ITimeProvider` | `ungula/core/time/i_time_provider.h` | Pluggable wall-clock source |
+| `ungula::core::time::tz::Timezone` (enum) | `ungula/core/time/timezones.h` | Named UTC offset codes |
+| `ungula::core::preferences::IPreferences` | `ungula/core/preferences/core/i_preferences.h` | Abstract NVS interface |
+| `ungula::core::preferences::Esp32Preferences` | `ungula/core/preferences/core/esp32_preferences.h` | ESP-IDF NVS implementation |
+| `ungula::core::preferences::programs::ProgramStore<T, N>` | `ungula/core/preferences/programs/program_store.h` | CRC-checked recipe slot table |
+| `ungula::core::util::Queue<T, Capacity>` | `ungula/core/util/queue.h` | Fixed-capacity circular queue |
+| `ungula::core::system::SystemControl` | `ungula/core/system/system_reboot.h` | Reboot helpers |
+| `ungula::core::system::HealthMonitor` / `HealthSample` | `ungula/core/system/health_monitor.h` | Heap sampler |
+| `ungula::core::system::ChipInfo` | `ungula/core/system/chip_info.h` | MCU identity struct |
+| `ungula::core::util::string_t`, `string_view_t`, `vector_string_t` | `ungula/core/util/string_types.h` | std-aliases used across all libraries |
 
 Time-aliases inside `TimeControl`: `tick_ms_t`, `tick_us_t`,
 `duration_ms_t`, `duration_us_t`, `epoch_ms_t` — all `int64_t`. Names
@@ -259,7 +259,7 @@ deleted). All members are `static`.
 
 ## Public functions / methods
 
-### `ungula::TimeControl` (selected)
+### `ungula::core::time::TimeControl` (selected)
 
 - **`static tick_ms_t millis()`** / **`static tick_us_t micros()`**
   Monotonic since boot. Both `int64_t` — never wrap in any device
@@ -293,7 +293,7 @@ deleted). All members are `static`.
   Network-coordinator clock alignment. `setSyncTime` stores a single
   offset; reads add it on the hot path.
 
-### `ungula::IPreferences` / `Esp32Preferences`
+### `ungula::core::preferences::IPreferences` / `Esp32Preferences`
 
 - **`bool begin(const char* ns)`** — open NVS namespace (≤ 15 chars).
   Must succeed before any get/put.
@@ -308,7 +308,7 @@ deleted). All members are `static`.
 compiles only when `ESP_PLATFORM` is defined. Inject `IPreferences&`
 into code that needs to be host-testable.
 
-### `ungula::ProgramStore<ProgramT, MaxPrograms>`
+### `ungula::core::preferences::programs::ProgramStore<ProgramT, MaxPrograms>`
 
 `ProgramT` must be POD with `char name[N]` and `bool valid` fields.
 
@@ -332,7 +332,7 @@ the struct layout (added field, reordering, padding shift) invalidates
 existing slots silently — bump a project version field inside
 `ProgramT` if you want explicit migration.
 
-### `ungula::Queue<T, Capacity>`
+### `ungula::core::util::Queue<T, Capacity>`
 
 - **`bool push(const T&)`** / **`bool push(T&&)`** — `false` when full.
 - **`bool pop(T& out)`** — `false` when empty; moves into `out`.
@@ -344,7 +344,7 @@ existing slots silently — bump a project version field inside
 heap. Not thread-safe; wrap with a mutex or use one queue per
 producer/consumer pair.
 
-### `ungula::str` (selected, namespace `ungula::str`)
+### `ungula::core::util::str` (selected, namespace `ungula::core::util::str`)
 
 `trim(string_t&)`, `as_trim`, `to_lower`, `as_lower`, `to_upper`,
 `as_upper`, `startsWith`, `replaceAll`, `escapeString`, `countChar`,
@@ -353,7 +353,7 @@ producer/consumer pair.
 `num_to_string<T>`, `num_to_stringf<T>`, `skipWhitespace*`,
 `trimWhitespace`. All inline.
 
-### `ungula::` math/temp helpers (in `util/types.h`)
+### `ungula::core::util` math/temp helpers (in `ungula/core/util/types.h`)
 
 - `math::clamp` — return clamped value, no side effects.
 - `math::clamp_v` — modify the first argument by
@@ -372,19 +372,19 @@ producer/consumer pair.
 
 ### CRC32
 
-- **`uint32_t ungula::crc32(const uint8_t* data, size_t len)`**
-- **`uint32_t ungula::crc32_byte(uint32_t crc, uint8_t byte)`** —
+- **`uint32_t ungula::core::util::crc32(const uint8_t* data, size_t len)`**
+- **`uint32_t ungula::core::util::crc32_byte(uint32_t crc, uint8_t byte)`** —
   step function for streaming.
 
 Polynomial `0xEDB88320` (zlib/Ethernet). Initial `0xFFFFFFFF`,
 final XOR `0xFFFFFFFF`.
 
-### `ungula::SystemControl`
+### `ungula::core::system::SystemControl`
 
 - **`static void reboot()`** — immediate hard reset.
 - **`static void rebootAfterMs(uint32_t)`** — sleeps then reboots.
 
-### `ungula::HealthMonitor`
+### `ungula::core::system::HealthMonitor`
 
 - **`bool sample(uint32_t intervalMs, HealthSample& out)`** — fills
   `out` and returns `true` only when at least `intervalMs` have passed
@@ -393,13 +393,13 @@ final XOR `0xFFFFFFFF`.
 - **`void reset()`** — clear baseline (use after a planned big
   alloc/free).
 
-### `ungula::queryChipInfo()`
+### `ungula::core::system::queryChipInfo()`
 
 Returns a `ChipInfo` populated by the platform backend. Strings are
 fixed-size in-struct buffers, so the value can be stored or copied
 freely.
 
-### `ungula::tz`
+### `ungula::core::time::tz`
 
 - **`enum class Timezone : uint8_t`** — ~30 entries (UTC, GMT, CET,
   EST, JST, …). Disambiguated suffixes for clashes (`CST_NA`,
@@ -477,8 +477,8 @@ No object in this library uses `new`/`delete` after construction.
 
 ## Internals not part of the public API
 
-- `time/platforms/time_control_esp32.h`,
-  `time/platforms/time_control_host.h` — picked automatically by
+- `ungula/core/time/platforms/time_control_esp32.h`,
+  `ungula/core/time/platforms/time_control_host.h` — picked automatically by
   `time_control.h`. Never `#include` directly.
 - `TimeControl::hasReachedMs / hasReachedUs` — private comparison
   helpers.
@@ -489,13 +489,9 @@ No object in this library uses `new`/`delete` after construction.
   `saveProgramToNvs`, `loadMetaFromNvs`, `saveMetaToNvs`,
   `programKey`, `NVS_NS = "programs"` — internal layout. Do not
   reach into NVS for these keys directly.
-- `preferences/core/esp32_preferences.cpp` — the `nvs_flash` glue.
+- `ungula/core/preferences/core/esp32_preferences.cpp` — the `nvs_flash` glue.
   Use the `IPreferences` interface; never include this file from app
   code.
-- `ungula::platformMillis()` / `ungula::platformMicros()` helpers
-  in `util/types.h` are legacy 32-bit shims kept for source
-  compatibility with old code; new code uses `TimeControl::millis()`.
-
 ---
 
 ## LLM usage rules
@@ -511,18 +507,18 @@ No object in this library uses `new`/`delete` after construction.
   serialization — CRC and slot management are non-trivial to redo.
 - Use `Queue<T, N>` instead of `std::deque` / dynamic ring buffers for
   bounded buffers. No heap is allocated after construction.
-- Use `ungula::string_t` / `string_view_t` aliases in new code rather
-  than `String` (Arduino) or raw `std::string`. Use `ungula::str::`
-  helpers; the `stringFoo` free functions in `util/types.h` are a
+- Use `ungula::core::util::string_t` / `string_view_t` aliases in new code rather
+  than `String` (Arduino) or raw `std::string`. Use `ungula::core::util::str::`
+  helpers; the `stringFoo` free functions in `ungula/core/util/types.h` are a
   porting aid and should not be the destination for new code.
 - All time values flowing through public APIs are `int64_t`. Don't
   truncate to `uint32_t` "to save space" — past 49 days it wraps.
-- Don't include `time/platforms/*` headers; let `time_control.h`
+- Don't include `ungula/core/time/platforms/*` headers; let `time_control.h`
   dispatch.
 - Don't read or write the `programs` NVS namespace by hand — that's
   `ProgramStore`'s territory.
 - Don't add logging into this library; surface state via return values
   or callbacks (project rule).
-- The umbrella header `<ungula_core.h>` is the Arduino-CLI discovery
-  hook; in non-Arduino builds, including the specific `time/...`,
-  `preferences/...`, `util/...`, `system/...` header is equivalent.
+- The umbrella header `<ungula/core.h>` is the Arduino-CLI discovery
+  hook; in non-Arduino builds, including the specific `ungula/core/time/...`,
+  `ungula/core/preferences/...`, `ungula/core/util/...`, `ungula/core/system/...` header is equivalent.

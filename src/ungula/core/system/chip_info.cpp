@@ -10,7 +10,7 @@
 #include <soc/rtc.h>
 #include <cstring>
 
-namespace ungula {
+namespace ungula::core::system {
 
     static const char* chipModelName(esp_chip_model_t model) {
         switch (model) {
@@ -72,4 +72,4 @@ namespace ungula {
         return info;
     }
 
-}  // namespace ungula
+}  // namespace ungula::core::system

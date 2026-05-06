@@ -2,9 +2,9 @@
 // Copyright (c) 2024-2026 Alex Conesa
 // See LICENSE file for details.
 
-#include "system/system_reboot.h"
+#include "ungula/core/system/system_reboot.h"
 
-#include "time/time_control.h"
+#include "ungula/core/time/time_control.h"
 
 #if defined(ESP_PLATFORM)
 #include "esp_system.h"
@@ -13,7 +13,7 @@
 #error "Unsupported platform"
 #endif
 
-namespace ungula {
+namespace ungula::core::system {
 
     void SystemControl::reboot() {
 #if defined(PLATFORM_SYSTEM_ESP_IDF)
@@ -28,4 +28,4 @@ namespace ungula {
         reboot();
     }
 
-}  // namespace ungula
+}  // namespace ungula::core::system

@@ -49,7 +49,7 @@
 ///   - `epoch_ms_t` — a wall-clock instant since the Unix epoch
 /// All are `int64_t`; the names exist to make intent visible at call sites.
 
-namespace ungula {
+namespace ungula::core::time {
 
     class TimeControl final {
         public:
@@ -280,8 +280,7 @@ namespace ungula {
             inline static int32_t timezoneOffsetSeconds_ = 0;
     };
 
-}  // namespace ungula
-
+}  // namespace ungula::core::time
 // ---- Platform dispatch ----
 // Each platform header contains inline definitions of the
 // platform-specific methods (millis, micros, delay*, delayUntil*).

@@ -4,13 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <time/time_format.h>
+#include <ungula/core/time/time_format.h>
 
 #include <cstring>
 
 namespace {
 
-    namespace fmt = ungula::time_format;
+    namespace fmt = ungula::core::time::time_format;
 
     // Anchor instant used across the suite. Pure arithmetic via gmtime_r,
     // so the expected strings are stable across hosts and ESP32 builds.

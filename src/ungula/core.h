@@ -11,17 +11,17 @@
 // Include this header to activate the library in Arduino
 
 // Utilities
-#include "util/queue.h"
-#include "util/string_types.h"
-#include "util/string_utils.h"
-#include "util/types.h"
+#include "ungula/core/util/queue.h"
+#include "ungula/core/util/string_types.h"
+#include "ungula/core/util/string_utils.h"
+#include "ungula/core/util/types.h"
 
 // Preferences
-#include "preferences/core/i_preferences.h"
+#include "ungula/core/preferences/core/i_preferences.h"
 
 // Time / Delay control
-#include "time/time_control.h"
+#include "ungula/core/time/time_control.h"
 
 // System Control (Reboot, runtime health)
-#include "system/health_monitor.h"
-#include "system/system_reboot.h"
+#include "ungula/core/system/health_monitor.h"
+#include "ungula/core/system/system_reboot.h"

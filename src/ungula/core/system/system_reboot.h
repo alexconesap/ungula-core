@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 
-namespace ungula {
+namespace ungula::core::system {
 
     class SystemControl final {
         public:
@@ -17,4 +17,4 @@ namespace ungula {
             static void rebootAfterMs(uint32_t waitTimeMs);
     };
 
-}  // namespace ungula
+}  // namespace ungula::core::system

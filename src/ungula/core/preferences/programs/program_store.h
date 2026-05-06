@@ -23,7 +23,7 @@
 
 #include <preferences/core/i_preferences.h>
 
-namespace ungula {
+namespace ungula::core::preferences::programs {
 
     template <typename ProgramT, int MaxPrograms>
     class ProgramStore {
@@ -238,4 +238,4 @@ namespace ungula {
             }
     };
 
-}  // namespace ungula
+}  // namespace ungula::core::preferences::programs

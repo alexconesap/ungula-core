@@ -30,20 +30,19 @@
 #error "No ESP ROM delay header found"
 #endif
 
-namespace ungula {
+namespace ungula::core::time::detail {
 
-    namespace detail {
+    // Hybrid delayUntilUs thresholds: coarse sleep for large gaps,
+    // tighter spin near the target. Guards shave off the worst-case
+    // overshoot from the sleep helper.
+    inline constexpr int64_t COARSE_THRESHOLD_US = 1000;
+    inline constexpr int64_t COARSE_GUARD_US = 200;
+    inline constexpr int64_t FINE_THRESHOLD_US = 50;
+    inline constexpr int64_t FINE_GUARD_US = 10;
 
-        // Hybrid delayUntilUs thresholds: coarse sleep for large gaps,
-        // tighter spin near the target. Guards shave off the worst-case
-        // overshoot from the sleep helper.
-        inline constexpr int64_t COARSE_THRESHOLD_US = 1000;
-        inline constexpr int64_t COARSE_GUARD_US = 200;
-        inline constexpr int64_t FINE_THRESHOLD_US = 50;
-        inline constexpr int64_t FINE_GUARD_US = 10;
+}  // namespace ungula::core::time::detail
 
-    }  // namespace detail
-
+namespace ungula::core::time {
     inline TimeControl::tick_ms_t TimeControl::millis() {
         return esp_timer_get_time() / 1000;
     }
@@ -105,4 +104,4 @@ namespace ungula {
         reference = target;
     }
 
-}  // namespace ungula
+}  // namespace ungula::core::time
