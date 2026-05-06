@@ -36,7 +36,7 @@ namespace ungula::core::system {
     }  // namespace
 
     bool HealthMonitor::sample(uint32_t intervalMs, HealthSample& out) {
-        const uint32_t now = TimeControl::millis();
+        const uint32_t now = ungula::core::time::TimeControl::millis();
 
         // First call always fires so the caller gets an immediate baseline.
         if (!first_ && (now - last_sample_ms_) < intervalMs) {

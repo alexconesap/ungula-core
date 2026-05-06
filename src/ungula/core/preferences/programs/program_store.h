@@ -21,7 +21,7 @@
 #include <cstdio>
 #include <cstring>
 
-#include <preferences/core/i_preferences.h>
+#include <ungula/core/preferences/core/i_preferences.h>
 
 namespace ungula::core::preferences::programs {
 
@@ -64,14 +64,16 @@ namespace ungula::core::preferences::programs {
             }
 
             const ProgramT& getProgram(int index) const {
-                if (index < 0 || index >= MaxPrograms)
+                if (index < 0 || index >= MaxPrograms) {
                     return programs_[0];
+                }
                 return programs_[index];
             }
 
             bool saveProgram(int index, const ProgramT& program) {
-                if (index < 0 || index >= MaxPrograms)
+                if (index < 0 || index >= MaxPrograms) {
                     return false;
+                }
                 programs_[index] = program;
                 programs_[index].valid = true;
                 saveProgramToNvs(index);
@@ -79,12 +81,15 @@ namespace ungula::core::preferences::programs {
             }
 
             bool deleteProgram(int index) {
-                if (index < 0 || index >= MaxPrograms)
+                if (index < 0 || index >= MaxPrograms) {
                     return false;
-                if (!programs_[index].valid)
+                }
+                if (!programs_[index].valid) {
                     return false;
-                if (countValid() <= 1)
+                }
+                if (countValid() <= 1) {
                     return false;
+                }
 
                 programs_[index].valid = false;
                 memset(programs_[index].name, 0, sizeof(programs_[index].name));
@@ -107,10 +112,12 @@ namespace ungula::core::preferences::programs {
             }
 
             void setActiveIndex(int index) {
-                if (index < 0 || index >= MaxPrograms)
+                if (index < 0 || index >= MaxPrograms) {
                     return;
-                if (!programs_[index].valid)
+                }
+                if (!programs_[index].valid) {
                     return;
+                }
                 activeIndex_ = index;
                 lastUsedIndex_ = index;
                 saveMetaToNvs();
@@ -121,8 +128,9 @@ namespace ungula::core::preferences::programs {
             }
 
             void setLastUsedIndex(int index) {
-                if (index < 0 || index >= MaxPrograms)
+                if (index < 0 || index >= MaxPrograms) {
                     return;
+                }
                 lastUsedIndex_ = index;
                 saveMetaToNvs();
             }
@@ -130,8 +138,9 @@ namespace ungula::core::preferences::programs {
             int countValid() const {
                 int count = 0;
                 for (const auto& prg : programs_) {
-                    if (prg.valid)
+                    if (prg.valid) {
                         count++;
+                    }
                 }
                 return count;
             }
@@ -171,8 +180,9 @@ namespace ungula::core::preferences::programs {
             }
 
             void loadAllFromNvs() {
-                if (!prefs_.begin(NVS_NS))
+                if (!prefs_.begin(NVS_NS)) {
                     return;
+                }
 
                 for (int idx = 0; idx < MaxPrograms; idx++) {
                     char key[4];
@@ -202,8 +212,9 @@ namespace ungula::core::preferences::programs {
             }
 
             void saveProgramToNvs(int index) {
-                if (index < 0 || index >= MaxPrograms)
+                if (index < 0 || index >= MaxPrograms) {
                     return;
+                }
 
                 ProgramBlob blob;
                 blob.program = programs_[index];
@@ -212,25 +223,29 @@ namespace ungula::core::preferences::programs {
                 char key[4];
                 programKey(index, key, sizeof(key));
 
-                if (!prefs_.begin(NVS_NS))
+                if (!prefs_.begin(NVS_NS)) {
                     return;
+                }
                 prefs_.putBytes(key, reinterpret_cast<const uint8_t*>(&blob), sizeof(blob));
                 prefs_.end();
             }
 
             void loadMetaFromNvs() {
-                if (!prefs_.begin(NVS_NS))
+                if (!prefs_.begin(NVS_NS)) {
                     return;
+                }
                 activeIndex_ = static_cast<int>(prefs_.getUInt8("active", 0));
                 lastUsedIndex_ = static_cast<int>(prefs_.getUInt8("last", 255));
-                if (lastUsedIndex_ == 255)
+                if (lastUsedIndex_ == 255) {
                     lastUsedIndex_ = -1;
+                }
                 prefs_.end();
             }
 
             void saveMetaToNvs() {
-                if (!prefs_.begin(NVS_NS))
+                if (!prefs_.begin(NVS_NS)) {
                     return;
+                }
                 prefs_.putUInt8("active", static_cast<uint8_t>(activeIndex_));
                 prefs_.putUInt8("last",
                                 lastUsedIndex_ >= 0 ? static_cast<uint8_t>(lastUsedIndex_) : 255);
