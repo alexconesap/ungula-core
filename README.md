@@ -48,6 +48,8 @@ Selection happens at the bottom of `time_control.h` via a single `#if defined(ES
 The API is a flat set of free functions in `ungula::core::time`. Use them directly:
 
 ```cpp
+#include <ungula/core.h>
+
 ungula::core::time::delay(2000);
 ungula::core::time::delayUs(500);
 auto t = ungula::core::time::millis();
@@ -56,6 +58,8 @@ auto t = ungula::core::time::millis();
 …or under a short namespace alias if you call them often:
 
 ```cpp
+#include <ungula/core.h>
+
 namespace tc = ungula::core::time;
 tc::delay(2000);
 auto t = tc::millis();
@@ -86,6 +90,8 @@ while (running) {
 Same thing in microseconds (best-effort, busy-wait):
 
 ```cpp
+#include <ungula/core.h>
+
 auto ref = tc::micros();
 while (stepping) {
     toggleStepPin();
@@ -96,6 +102,8 @@ while (stepping) {
 ### Simple Delays and cross-platform time functions
 
 ```cpp
+#include <ungula/core.h>
+
 tc::delayMs(100);           // block for 100ms
 tc::delayUs(500);           // block for 500us (busy-wait)
 auto now = tc::millis();    // monotonic ms tick
@@ -105,6 +113,8 @@ auto us  = tc::micros();    // monotonic us tick
 ### Useful helpers
 
 ```cpp
+#include <ungula/core.h>
+
 // Stop using 
 tc::delayMs(0); // It works but requires a side commentary
 // Another dev could remove it, or waste time trying to figure out
@@ -135,6 +145,8 @@ The aliases (`tick_ms_t`, `tick_us_t`, `duration_ms_t`, `duration_us_t`, `epoch_
 2. **No silent truncation.** ESP-IDF's `esp_timer_get_time()` already returns `int64_t`. The previous `uint32_t` `micros()` was *wrong* past 71 minutes — values were truncated to the low 32 bits. Now the call is straight pass-through.
 3. **Signed math just works for deadlines.**
    ```cpp
+#include <ungula/core.h>
+
    const auto remaining = deadline - tc::millis();
    if (remaining <= 0) handleOverdue();   // intuitive
    ```
@@ -193,6 +205,8 @@ After the call, `tc::nowLocal()` returns LA wall-clock ms; `tc::nowUtc()` is una
 Spain follows Central European Time. Winter is `CET` (+1:00), summer is `CEST` (+2:00). Same pattern:
 
 ```cpp
+#include <ungula/core.h>
+
 namespace tz = ungula::core::time::tz;
 
 void applyBarcelonaZone(bool daylightSaving) {
@@ -210,6 +224,8 @@ void setup() {
 If the device is configured for one zone but a single read needs another (e.g. a UI tooltip showing "in Barcelona, that's…" while the host project runs in LA), use `nowInTz()` — it does not touch the stored offset:
 
 ```cpp
+#include <ungula/core.h>
+
 tc::setTimezone(tz::Timezone::PST_NA);  // device is in LA
 
 const uint64_t bcnNow = tc::nowInTz(
@@ -319,6 +335,8 @@ ungula::core::time::formatIso8601(ts, sizeof(ts), saved_epoch_seconds, /*offset=
 ## System Control (`ungula/core/system/`)
 
 ```cpp
+#include <ungula/core.h>
+
 using ungula::core::system::SystemControl;
 
 SystemControl::reboot();
@@ -331,6 +349,7 @@ Query the MCU at boot to log hardware details. The header is portable (plain str
 
 ```cpp
 #include <ungula/core/system/chip_info.h>
+#include <emblogx/logger.h>
 
 void setup() {
     ungula::core::system::ChipInfo chip = ungula::core::system::queryChipInfo();
@@ -351,6 +370,8 @@ Fields: `model`, `sdkVersion`, `features` (human-readable string), `cores`, `rev
 ### CRC32 (`ungula/core/util/crc32.h`)
 
 ```cpp
+#include <ungula/core.h>
+
 uint32_t checksum = ungula::core::util::crc32(data, len);
 ```
 
@@ -432,7 +453,8 @@ input. `clamp01` and `lerp` are also available.
 Other implementations can be created against the same interface, so your application code does not care which one is behind it.
 
 ```cpp
-#include "ungula/core/preferences/esp32_preferences.h"
+#include <ungula/core/preferences/core/esp32_preferences.h>
+#include <emblogx/logger.h>
 
 ungula::core::preferences::Esp32Preferences prefs;
 // or: any other implementation you can create
@@ -494,6 +516,7 @@ Your project defines the struct, the store handles persistence:
 
 ```cpp
 #include <ungula/core/preferences/programs/program_store.h>
+#include <emblogx/logger.h>
 
 // Project-specific recipe struct — any fields you need
 struct MyRecipe {
