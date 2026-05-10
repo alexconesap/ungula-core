@@ -6,7 +6,8 @@
 
 #include <stdint.h>
 
-namespace ungula::core::time {
+namespace ungula::core::time
+{
 
     /// @brief Pluggable source of absolute wall-clock time in milliseconds.
     ///
@@ -20,24 +21,24 @@ namespace ungula::core::time {
     /// report honestly via `isValid()` whether the returned value is usable.
     /// When `isValid()` is false, `now()` falls back to the local clock.
     class ITimeProvider {
-        public:
-            virtual ~ITimeProvider() = default;
+    public:
+        virtual ~ITimeProvider() = default;
 
-            /// Current time, in milliseconds. Signed 64-bit:
-            ///   - 64-bit so wall-clock epoch-ms fits without truncation.
-            ///   - Signed so callers can subtract two values and detect
-            ///     "in the future" (negative) cleanly. ESP-IDF and POSIX
-            ///     `time_t` are both signed for the same reason.
-            ///
-            /// The meaning (UTC epoch? local epoch? uptime?) is the
-            /// implementation's choice — by convention providers return
-            /// UTC epoch-ms when they represent a wall clock, leaving
-            /// timezone shifting to `nowInTz()`.
-            virtual int64_t nowMs() const = 0;
+        /// Current time, in milliseconds. Signed 64-bit:
+        ///   - 64-bit so wall-clock epoch-ms fits without truncation.
+        ///   - Signed so callers can subtract two values and detect
+        ///     "in the future" (negative) cleanly. ESP-IDF and POSIX
+        ///     `time_t` are both signed for the same reason.
+        ///
+        /// The meaning (UTC epoch? local epoch? uptime?) is the
+        /// implementation's choice — by convention providers return
+        /// UTC epoch-ms when they represent a wall clock, leaving
+        /// timezone shifting to `nowInTz()`.
+        virtual int64_t nowMs() const = 0;
 
-            /// True when `nowMs()` is trustworthy. Returning false makes
-            /// `now()` fall back to the local monotonic clock.
-            virtual bool isValid() const = 0;
+        /// True when `nowMs()` is trustworthy. Returning false makes
+        /// `now()` fall back to the local monotonic clock.
+        virtual bool isValid() const = 0;
     };
 
-}  // namespace ungula::core::time
+} // namespace ungula::core::time

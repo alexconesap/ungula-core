@@ -20,12 +20,14 @@
 
 #include "string_types.h"
 
-namespace ungula::core::util::str {
+namespace ungula::core::util::str
+{
 
     /// @brief Skip leading whitespace in a C-style string.
     /// @param pstr Pointer to the C-style string.
     /// @return Pointer to the first non-whitespace character in the string.
-    inline const char* skipWhitespace(const char* pstr) {
+    inline const char *skipWhitespace(const char *pstr)
+    {
         while (*pstr != '\0' && std::isspace(*pstr)) {
             ++pstr;
         }
@@ -35,7 +37,8 @@ namespace ungula::core::util::str {
     /// @brief Skip leading whitespace in a string_view.
     /// @param sv The string_view to skip whitespace in.
     /// @return A new string_view starting from the first non-whitespace character.
-    inline string_view_t skipWhitespaceView(string_view_t string) {
+    inline string_view_t skipWhitespaceView(string_view_t string)
+    {
         size_t start = 0;
         while (start < string.size() && std::isspace(static_cast<unsigned char>(string[start]))) {
             ++start;
@@ -46,7 +49,8 @@ namespace ungula::core::util::str {
     /// @brief Trim leading and trailing whitespace from a C-style string.
     /// @param buf Pointer to the C-style string buffer.
     /// @param len Length of the string in the buffer.
-    inline void trimWhitespace(char* buf, size_t& len) {
+    inline void trimWhitespace(char *buf, size_t &len)
+    {
         size_t start = 0;
         while (start < len && std::isspace(static_cast<unsigned char>(buf[start]))) {
             start++;
@@ -64,7 +68,8 @@ namespace ungula::core::util::str {
     /// @brief Trim leading and trailing whitespace from a string_view.
     /// @param str The string_view to trim.
     /// @return A new string_view with leading and trailing whitespace removed.
-    inline string_view_t trimWhitespace(string_view_t str) {
+    inline string_view_t trimWhitespace(string_view_t str)
+    {
         size_t curr = 0, e = str.size();
         while (curr < e && std::isspace(static_cast<unsigned char>(str[curr]))) {
             ++curr;
@@ -79,7 +84,8 @@ namespace ungula::core::util::str {
     /// @param str The string to check.
     /// @param prefix The C-style string prefix to check for. Empty prefix is always a match.
     /// @return True if the string starts with the prefix, false otherwise.
-    inline bool startsWith(const string_t& str, const char* prefix) {
+    inline bool startsWith(const string_t &str, const char *prefix)
+    {
         size_t len = std::strlen(prefix);
         return str.size() >= len && std::memcmp(str.data(), prefix, len) == 0;
     }
@@ -88,7 +94,8 @@ namespace ungula::core::util::str {
     /// @param str The string to check.
     /// @param prefix The string prefix to check for. Empty prefix is always a match.
     /// @return True if the string starts with the prefix, false otherwise.
-    inline bool startsWith(const string_t& str, const string_t& prefix) {
+    inline bool startsWith(const string_t &str, const string_t &prefix)
+    {
         //
         return str.rfind(prefix, 0) == 0;
     }
@@ -97,7 +104,8 @@ namespace ungula::core::util::str {
     /// @param str The string to check.
     /// @param prefix The string prefix to check for. Empty prefix is always a match.
     /// @return True if the string starts with the prefix, false otherwise.
-    inline bool startsWith(const string_view_t& str, const string_view_t& prefix) {
+    inline bool startsWith(const string_view_t &str, const string_view_t &prefix)
+    {
         //
         return str.rfind(prefix, 0) == 0;
     }
@@ -117,8 +125,8 @@ namespace ungula::core::util::str {
     /// @note This function modifies `text_in_out` in place.
     /// @note If `replacement` is empty, it will remove all occurrences of `pattern` from
     /// `text_in_out`.
-    inline int replaceAll(string_t& text_in_out, const string_view_t pattern,
-                          const string_view_t replacement) {
+    inline int replaceAll(string_t &text_in_out, const string_view_t pattern, const string_view_t replacement)
+    {
         if (pattern.empty()) {
             if (replacement.empty()) {
                 return 0;
@@ -153,14 +161,17 @@ namespace ungula::core::util::str {
         return count;
     }
 
-    inline int replaceAll(string_t& str, const char* pattern, const char* replacement) {
+    inline int replaceAll(string_t &str, const char *pattern, const char *replacement)
+    {
         return replaceAll(str, string_view_t(pattern, std::strlen(pattern)),
                           string_view_t(replacement, std::strlen(replacement)));
     }
-    inline int replaceAll(string_t& str, const char* pattern, string_view_t replacement) {
+    inline int replaceAll(string_t &str, const char *pattern, string_view_t replacement)
+    {
         return replaceAll(str, string_view_t(pattern, std::strlen(pattern)), replacement);
     }
-    inline int replaceAll(string_t& str, string_view_t pattern, const char* replacement) {
+    inline int replaceAll(string_t &str, string_view_t pattern, const char *replacement)
+    {
         return replaceAll(str, pattern, string_view_t(replacement, std::strlen(replacement)));
     }
 
@@ -169,42 +180,44 @@ namespace ungula::core::util::str {
     /// @details This function escapes double quotes, backslashes, newlines, carriage returns,
     /// and tabs.
     /// @return The escaped string.
-    inline string_t escapeString(const string_t& text_in_out) {
+    inline string_t escapeString(const string_t &text_in_out)
+    {
         string_t output;
         output.reserve(text_in_out.size() + 8);
 
         for (char c : text_in_out) {
             switch (c) {
-                case '"':
-                    output += "\\\"";
-                    break;
-                case '\\':
-                    output += "\\\\";
-                    break;
-                case '\n':
-                    output += "\\n";
-                    break;
-                case '\r':
-                    output += "\\r";
-                    break;
-                case '\t':
-                    output += "\\t";
-                    break;
-                default:
-                    output += c;
+            case '"':
+                output += "\\\"";
+                break;
+            case '\\':
+                output += "\\\\";
+                break;
+            case '\n':
+                output += "\\n";
+                break;
+            case '\r':
+                output += "\\r";
+                break;
+            case '\t':
+                output += "\\t";
+                break;
+            default:
+                output += c;
             }
         }
         return output;
     }
 
-    inline size_t countChar(const string_t& string, char chr);
-    constexpr size_t countChar(const char* pstr, char chr);
+    inline size_t countChar(const string_t &string, char chr);
+    constexpr size_t countChar(const char *pstr, char chr);
 
     /// @brief Count the number of occurrences of character c in the string or C-style string.
     /// @param pstr C-style string pointer.
     /// @param chr Character to count occurrences of.
     /// @return The number of occurrences of character c in the string.
-    constexpr size_t countChar(const char* pstr, char chr) {
+    constexpr size_t countChar(const char *pstr, char chr)
+    {
         size_t cnt = 0;
         while (*pstr != '\0') {
             cnt += (*pstr++ == chr);
@@ -216,7 +229,8 @@ namespace ungula::core::util::str {
     /// @param string The string to search in.
     /// @param chr Character to count occurrences of.
     /// @return The number of occurrences of character c in the string.
-    inline size_t countChar(const string_t& string, char chr) {
+    inline size_t countChar(const string_t &string, char chr)
+    {
         return countChar(string.c_str(), chr);
     }
 
@@ -224,7 +238,8 @@ namespace ungula::core::util::str {
     /// @param token The string_view to search in.
     /// @param chr Character to count occurrences of.
     /// @return The number of occurrences of character c in the string_view.
-    inline size_t countChar(const string_view_t& token, char chr) {
+    inline size_t countChar(const string_view_t &token, char chr)
+    {
         return std::count(token.begin(), token.end(), chr);
     }
 
@@ -246,7 +261,8 @@ namespace ungula::core::util::str {
     /// countTokensByChar(",", ',') // returns 0 (like an empty string)
     /// \endverbatim
     /// ```
-    inline int countTokensByChar(const char* str, char chr) {
+    inline int countTokensByChar(const char *str, char chr)
+    {
         if (str == nullptr || *str == '\0') {
             return 0;
         }
@@ -267,18 +283,21 @@ namespace ungula::core::util::str {
         return (inToken ? ++count : count);
     }
 
-    inline size_t countTokensByChar(const string_t& str, char c) {
+    inline size_t countTokensByChar(const string_t &str, char c)
+    {
         return countTokensByChar(str.c_str(), c);
     }
 
     /// string_indexOf: returns first position of char c after `start`, or -1 if not found
-    inline int string_indexOf(const string_t& string, char chr, int start = 0) {
+    inline int string_indexOf(const string_t &string, char chr, int start = 0)
+    {
         const size_t pos = string.find(chr, static_cast<size_t>(start));
         return (pos == std::string::npos) ? -1 : static_cast<int>(pos);
     }
 
     /// substring: Return substring from start to end (exclusive)
-    inline string_t string_substring(const string_t& str, int start, int end = -1) {
+    inline string_t string_substring(const string_t &str, int start, int end = -1)
+    {
         if (start < 0) {
             start = 0;
         }
@@ -290,7 +309,8 @@ namespace ungula::core::util::str {
 
     /// @brief Remove leading and trailing whitespace from the string
     /// @param str_in_out The string to trim. This string will be modified in place.
-    inline void trim(string_t& str_in_out) {
+    inline void trim(string_t &str_in_out)
+    {
         // Trim leading spaces
         const size_t start = str_in_out.find_first_not_of(" \t\n\r");
         if (start == string_t::npos) {
@@ -305,14 +325,16 @@ namespace ungula::core::util::str {
     /// @brief Trim a string and return a new copy.
     /// @param str The string to trim.
     /// @return Trimmed string_t
-    inline string_t as_trim(const string_t& str) {
+    inline string_t as_trim(const string_t &str)
+    {
         string_t result = str;
         trim(result);
         return result;
     }
 
     /// string_equals: Compare two strings for equality
-    inline bool string_equals(const string_t& str1, const string_t& str2) {
+    inline bool string_equals(const string_t &str1, const string_t &str2)
+    {
         return str1 == str2;
     }
 
@@ -325,8 +347,8 @@ namespace ungula::core::util::str {
     /// @param buf A character buffer to store the resulting string. Must be at least 32 bytes
     /// long for a 64-bit number.
     /// @param buf_size The size of the buffer.
-    template <typename T>
-    void num_to_stringf(T num, char* buf, size_t buf_size) {
+    template <typename T> void num_to_stringf(T num, char *buf, size_t buf_size)
+    {
         if constexpr (std::is_same<T, int>::value) {
             snprintf(buf, buf_size, "%d", num);
         } else if constexpr (std::is_same<T, unsigned int>::value) {
@@ -344,15 +366,16 @@ namespace ungula::core::util::str {
         }
     }
 
-    template <typename T>
-    string_t num_to_string(T num) {
+    template <typename T> string_t num_to_string(T num)
+    {
         char buf[32];
         num_to_stringf(num, buf, sizeof(buf));
-        return {buf};
+        return { buf };
     }
     /// to_lower: Convert the given string to lowercase
-    inline void to_lower(string_t& string) {
-        for (auto& c : string) {
+    inline void to_lower(string_t &string)
+    {
+        for (auto &c : string) {
             const auto uc = static_cast<unsigned char>(c);
             c = static_cast<char>(std::tolower(uc));
         }
@@ -361,15 +384,17 @@ namespace ungula::core::util::str {
     /// @brief Convert a string to lowercase and return a new string.
     /// @param str The string to convert.
     /// @return The lowercase version of the input string.
-    inline string_t as_lower(const string_t& str) {
+    inline string_t as_lower(const string_t &str)
+    {
         string_t out = str;
         to_lower(out);
         return out;
     }
 
     /// to_upper: Convert the given string to uppercase
-    inline void to_upper(string_t& str) {
-        for (auto& c : str) {
+    inline void to_upper(string_t &str)
+    {
+        for (auto &c : str) {
             const auto uc = static_cast<unsigned char>(c);
             c = static_cast<char>(std::toupper(uc));
         }
@@ -378,7 +403,8 @@ namespace ungula::core::util::str {
     /// @brief Convert a string to uppercase and return a new string.
     /// @param str The string to convert.
     /// @return The uppercase version of the input string.
-    inline string_t as_upper(const string_t& str) {
+    inline string_t as_upper(const string_t &str)
+    {
         string_t out = str;
         to_upper(out);
         return out;
@@ -390,7 +416,8 @@ namespace ungula::core::util::str {
     /// @note Spaces between delimiters are considered tokens.
     /// @param delimiter The character used to split the string into tokens.
     /// @return A vector of string_view_t tokens.
-    inline vector_string_t tokenizeByDelimiter(const string_t& str, char delimiter) {
+    inline vector_string_t tokenizeByDelimiter(const string_t &str, char delimiter)
+    {
         if (str.empty()) {
             return {};
         }
@@ -421,7 +448,8 @@ namespace ungula::core::util::str {
     /// @param delimiter the character to split on (default ',')
     /// @return          cleaned string (e.g. "a,b qq,c")
     /// \endverbatim
-    inline string_t cleanDelimitedValues(const string_t& text_in_out, char delimiter = ',') {
+    inline string_t cleanDelimitedValues(const string_t &text_in_out, char delimiter = ',')
+    {
         if (text_in_out.empty()) {
             return {};
         }
@@ -435,7 +463,7 @@ namespace ungula::core::util::str {
         result.reserve(text_in_out.size());
 
         bool first = true;
-        for (const auto& sv : tokens) {
+        for (const auto &sv : tokens) {
             auto trimmed = trimWhitespace(sv);
             if (trimmed.empty())
                 continue;
@@ -453,4 +481,4 @@ namespace ungula::core::util::str {
     //     return (uint32_t(x - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
     // }
 
-}  // namespace ungula::core::util::str
+} // namespace ungula::core::util::str

@@ -6,10 +6,12 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace ungula::core::util {
+namespace ungula::core::util
+{
 
     /// Compute CRC32 for a single byte (standard polynomial 0xEDB88320).
-    inline uint32_t crc32_byte(uint32_t crc, uint8_t byte) {
+    inline uint32_t crc32_byte(uint32_t crc, uint8_t byte)
+    {
         crc ^= byte;
         for (int i = 0; i < 8; ++i) {
             if (crc & 1)
@@ -21,7 +23,8 @@ namespace ungula::core::util {
     }
 
     /// Compute CRC32 over a data buffer.
-    inline uint32_t crc32(const uint8_t* data, size_t len) {
+    inline uint32_t crc32(const uint8_t *data, size_t len)
+    {
         uint32_t crc = 0xFFFFFFFFu;
         for (size_t i = 0; i < len; ++i) {
             crc = crc32_byte(crc, data[i]);
@@ -29,4 +32,4 @@ namespace ungula::core::util {
         return crc ^ 0xFFFFFFFFu;
     }
 
-}  // namespace ungula::core::util
+} // namespace ungula::core::util

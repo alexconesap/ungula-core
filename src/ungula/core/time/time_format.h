@@ -20,7 +20,8 @@
 /// arithmetically. The system's TZ environment is never consulted, so
 /// behaviour is identical across hosts and ESP32 builds.
 
-namespace ungula::core::time {
+namespace ungula::core::time
+{
 
     /// Format an arbitrary epoch instant with a custom strftime spec.
     ///
@@ -33,8 +34,9 @@ namespace ungula::core::time {
     ///   (positive east of UTC). Default 0 = UTC output.
     /// @return Number of characters written, or 0 on failure
     ///   (small buffer, null inputs, or epoch == 0).
-    inline size_t format(char* buf, size_t bufSize, const char* strftimeFmt, time_t epochSeconds,
-                         int32_t offsetSeconds = 0) {
+    inline size_t format(char *buf, size_t bufSize, const char *strftimeFmt, time_t epochSeconds,
+                         int32_t offsetSeconds = 0)
+    {
         if (buf == nullptr || bufSize == 0 || strftimeFmt == nullptr) {
             return 0;
         }
@@ -50,9 +52,9 @@ namespace ungula::core::time {
 
     /// Convenience for the common log-line shape "YYYY-MM-DD HH:MM:SS".
     /// Buffer must be at least 20 bytes (19 chars + null terminator).
-    inline size_t formatIso8601(char* buf, size_t bufSize, time_t epochSeconds,
-                                int32_t offsetSeconds = 0) {
+    inline size_t formatIso8601(char *buf, size_t bufSize, time_t epochSeconds, int32_t offsetSeconds = 0)
+    {
         return format(buf, bufSize, "%Y-%m-%d %H:%M:%S", epochSeconds, offsetSeconds);
     }
 
-}  // namespace ungula::core::time
+} // namespace ungula::core::time

@@ -13,19 +13,22 @@
 #error "Unsupported platform"
 #endif
 
-namespace ungula::core::system {
+namespace ungula::core::system
+{
 
-    void SystemControl::reboot() {
+    void SystemControl::reboot()
+    {
 #if defined(PLATFORM_SYSTEM_ESP_IDF)
         esp_restart();
 #endif
     }
 
-    void SystemControl::rebootAfterMs(uint32_t waitTimeMs) {
+    void SystemControl::rebootAfterMs(uint32_t waitTimeMs)
+    {
         if (waitTimeMs != 0U) {
             ungula::core::time::delayMs(waitTimeMs);
         }
         reboot();
     }
 
-}  // namespace ungula::core::system
+} // namespace ungula::core::system

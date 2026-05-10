@@ -29,7 +29,8 @@
 #error "No ESP ROM delay header found"
 #endif
 
-namespace ungula::core::time::detail {
+namespace ungula::core::time::detail
+{
 
     // Hybrid delayUntilUs thresholds: coarse sleep for large gaps,
     // tighter spin near the target. Guards shave off the worst-case
@@ -39,33 +40,39 @@ namespace ungula::core::time::detail {
     inline constexpr int64_t FINE_THRESHOLD_US = 50;
     inline constexpr int64_t FINE_GUARD_US = 10;
 
-}  // namespace ungula::core::time::detail
+} // namespace ungula::core::time::detail
 
-namespace ungula::core::time {
+namespace ungula::core::time
+{
 
-    inline tick_ms_t millis() {
+    inline tick_ms_t millis()
+    {
         return esp_timer_get_time() / 1000;
     }
 
-    inline tick_us_t micros() {
+    inline tick_us_t micros()
+    {
         return esp_timer_get_time();
     }
 
-    inline void delayMs(duration_ms_t msv) {
+    inline void delayMs(duration_ms_t msv)
+    {
         if (msv <= 0) {
             return;
         }
         vTaskDelay(pdMS_TO_TICKS(static_cast<uint32_t>(msv)));
     }
 
-    inline void delayUs(duration_us_t usv) {
+    inline void delayUs(duration_us_t usv)
+    {
         if (usv <= 0) {
             return;
         }
         esp_rom_delay_us(static_cast<uint32_t>(usv));
     }
 
-    inline void delayUntilMs(tick_ms_t& reference, duration_ms_t periodMs) {
+    inline void delayUntilMs(tick_ms_t &reference, duration_ms_t periodMs)
+    {
         if (periodMs <= 0) {
             return;
         }
@@ -83,7 +90,8 @@ namespace ungula::core::time {
         reference = static_cast<tick_ms_t>(refTicks * portTICK_PERIOD_MS);
     }
 
-    inline void delayUntilUs(tick_us_t& reference, duration_us_t periodUs) {
+    inline void delayUntilUs(tick_us_t &reference, duration_us_t periodUs)
+    {
         if (periodUs <= 0) {
             return;
         }
@@ -104,4 +112,4 @@ namespace ungula::core::time {
         reference = target;
     }
 
-}  // namespace ungula::core::time
+} // namespace ungula::core::time

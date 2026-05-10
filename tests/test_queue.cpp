@@ -3,7 +3,8 @@
 
 using ungula::core::util::Queue;
 
-TEST(Queue, EmptyOnCreation) {
+TEST(Queue, EmptyOnCreation)
+{
     Queue<int, 5> q;
     EXPECT_TRUE(q.isEmpty());
     EXPECT_FALSE(q.isFull());
@@ -11,7 +12,8 @@ TEST(Queue, EmptyOnCreation) {
     EXPECT_EQ(q.capacity(), 5u);
 }
 
-TEST(Queue, PushAndPop) {
+TEST(Queue, PushAndPop)
+{
     Queue<int, 5> q;
     EXPECT_TRUE(q.push(42));
     EXPECT_EQ(q.count(), 1u);
@@ -22,7 +24,8 @@ TEST(Queue, PushAndPop) {
     EXPECT_TRUE(q.isEmpty());
 }
 
-TEST(Queue, PeekDoesNotRemove) {
+TEST(Queue, PeekDoesNotRemove)
+{
     Queue<int, 5> q;
     q.push(99);
 
@@ -32,19 +35,22 @@ TEST(Queue, PeekDoesNotRemove) {
     EXPECT_EQ(q.count(), 1u);
 }
 
-TEST(Queue, PeekOnEmptyReturnsFalse) {
+TEST(Queue, PeekOnEmptyReturnsFalse)
+{
     Queue<int, 5> q;
     int val = 0;
     EXPECT_FALSE(q.peek(val));
 }
 
-TEST(Queue, PopOnEmptyReturnsFalse) {
+TEST(Queue, PopOnEmptyReturnsFalse)
+{
     Queue<int, 5> q;
     int val = 0;
     EXPECT_FALSE(q.pop(val));
 }
 
-TEST(Queue, FullQueueRejectsPush) {
+TEST(Queue, FullQueueRejectsPush)
+{
     Queue<int, 3> q;
     EXPECT_TRUE(q.push(1));
     EXPECT_TRUE(q.push(2));
@@ -53,7 +59,8 @@ TEST(Queue, FullQueueRejectsPush) {
     EXPECT_FALSE(q.push(4));
 }
 
-TEST(Queue, FifoOrder) {
+TEST(Queue, FifoOrder)
+{
     Queue<int, 5> q;
     q.push(10);
     q.push(20);
@@ -68,7 +75,8 @@ TEST(Queue, FifoOrder) {
     EXPECT_EQ(val, 30);
 }
 
-TEST(Queue, CircularWrapAround) {
+TEST(Queue, CircularWrapAround)
+{
     Queue<int, 3> q;
 
     // Fill and drain twice to exercise wrap
@@ -89,7 +97,8 @@ TEST(Queue, CircularWrapAround) {
     }
 }
 
-TEST(Queue, ClearResetsQueue) {
+TEST(Queue, ClearResetsQueue)
+{
     Queue<int, 5> q;
     q.push(1);
     q.push(2);
@@ -98,7 +107,8 @@ TEST(Queue, ClearResetsQueue) {
     EXPECT_EQ(q.count(), 0u);
 }
 
-TEST(Queue, MoveSemantics) {
+TEST(Queue, MoveSemantics)
+{
     Queue<std::string, 3> q;
     std::string s = "hello";
     q.push(std::move(s));
@@ -109,7 +119,8 @@ TEST(Queue, MoveSemantics) {
     EXPECT_EQ(out, "hello");
 }
 
-TEST(Queue, CapacityOne) {
+TEST(Queue, CapacityOne)
+{
     Queue<int, 1> q;
     EXPECT_TRUE(q.push(42));
     EXPECT_TRUE(q.isFull());

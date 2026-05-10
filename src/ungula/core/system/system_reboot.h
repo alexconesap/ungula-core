@@ -6,15 +6,16 @@
 
 #include <stdint.h>
 
-namespace ungula::core::system {
+namespace ungula::core::system
+{
 
     class SystemControl final {
-        public:
-            SystemControl() = delete;
-            ~SystemControl() = delete;
+    public:
+        SystemControl() = delete;
+        ~SystemControl() = delete;
 
-            static void reboot();
-            static void rebootAfterMs(uint32_t waitTimeMs);
+        static void reboot();
+        static void rebootAfterMs(uint32_t waitTimeMs);
     };
 
-}  // namespace ungula::core::system
+} // namespace ungula::core::system

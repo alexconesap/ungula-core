@@ -62,30 +62,32 @@
 ///   ungula::core::time::delay(2000);
 /// ```
 
-namespace ungula::core::time {
+namespace ungula::core::time
+{
 
-    using tick_ms_t = int64_t;      /// monotonic ms since boot
-    using tick_us_t = int64_t;      /// monotonic us since boot
-    using duration_ms_t = int64_t;  /// delays, intervals, remaining time
+    using tick_ms_t = int64_t; /// monotonic ms since boot
+    using tick_us_t = int64_t; /// monotonic us since boot
+    using duration_ms_t = int64_t; /// delays, intervals, remaining time
     using duration_us_t = int64_t;
-    using epoch_ms_t = int64_t;  /// Unix epoch ms (signed for delta arithmetic)
+    using epoch_ms_t = int64_t; /// Unix epoch ms (signed for delta arithmetic)
 
-    namespace detail {
+    namespace detail
+    {
 
         /// Sync offset between local and coordinator clocks.
         struct SyncState {
-                int64_t offsetMs;
-                int64_t offsetUs;
-                bool active;
+            int64_t offsetMs;
+            int64_t offsetUs;
+            bool active;
         };
 
         // C++17 inline statics — module-private state, single definition
         // across all TUs that include this header.
-        inline ITimeProvider* provider_ = nullptr;
-        inline SyncState sync_ = {0, 0, false};
+        inline ITimeProvider *provider_ = nullptr;
+        inline SyncState sync_ = { 0, 0, false };
         inline int32_t timezoneOffsetSeconds_ = 0;
 
-    }  // namespace detail
+    } // namespace detail
 
     // ---- Local clock (platform-provided; defined in platform header) ----
 
@@ -114,18 +116,20 @@ namespace ungula::core::time {
     ///       ungula::core::time::delayUntilMs(ref, 50);
     ///   }
     /// ```
-    void delayUntilMs(tick_ms_t& reference, duration_ms_t periodMs);
+    void delayUntilMs(tick_ms_t &reference, duration_ms_t periodMs);
 
     /// Same idea in microseconds. Best-effort — relies on busy-wait.
-    void delayUntilUs(tick_us_t& reference, duration_us_t periodUs);
+    void delayUntilUs(tick_us_t &reference, duration_us_t periodUs);
 
     // ---- Time provider hook ----
 
-    inline void setTimeProvider(ITimeProvider* provider) {
+    inline void setTimeProvider(ITimeProvider *provider)
+    {
         detail::provider_ = provider;
     }
 
-    inline void clearTimeProvider() {
+    inline void clearTimeProvider()
+    {
         detail::provider_ = nullptr;
     }
 
@@ -137,7 +141,8 @@ namespace ungula::core::time {
     ///
     /// Returns UTC by convention. Use `nowLocal()` for the configured
     /// timezone, or `nowInTz()` for an arbitrary one.
-    inline epoch_ms_t now() {
+    inline epoch_ms_t now()
+    {
         if (detail::provider_ != nullptr && detail::provider_->isValid()) {
             return detail::provider_->nowMs();
         }
@@ -145,45 +150,52 @@ namespace ungula::core::time {
     }
 
     /// Explicit UTC alias. Same as `now()`.
-    inline epoch_ms_t nowUtc() {
+    inline epoch_ms_t nowUtc()
+    {
         return now();
     }
 
     /// Wall-clock in the timezone configured via
     /// `setTimezoneOffsetSeconds()`. Equals `now()` until that setter
     /// has been called.
-    inline epoch_ms_t nowLocal() {
+    inline epoch_ms_t nowLocal()
+    {
         return now() + (static_cast<int64_t>(detail::timezoneOffsetSeconds_) * 1000);
     }
 
     /// Wall-clock in an arbitrary timezone — caller supplies the offset
     /// in seconds from UTC (e.g. -5 * 3600 for EST). Does NOT consult or
     /// change the stored offset.
-    inline epoch_ms_t nowInTz(int32_t offsetSeconds) {
+    inline epoch_ms_t nowInTz(int32_t offsetSeconds)
+    {
         return now() + (static_cast<int64_t>(offsetSeconds) * 1000);
     }
 
     /// Set the offset used by `nowLocal()`. Default is 0 (UTC). No DST
     /// awareness — for that, use the NTP client's strftime-based formatters.
-    inline void setTimezoneOffsetSeconds(int32_t offsetSeconds) {
+    inline void setTimezoneOffsetSeconds(int32_t offsetSeconds)
+    {
         detail::timezoneOffsetSeconds_ = offsetSeconds;
     }
 
     /// Convenience overload — pick a named zone instead of a raw offset.
     /// Use the entries from `time/timezones.h` so the project never
     /// hard-codes "what is the offset for Tokyo".
-    inline void setTimezone(tz::Timezone zone) {
+    inline void setTimezone(tz::Timezone zone)
+    {
         detail::timezoneOffsetSeconds_ = tz::offsetSeconds(zone);
     }
 
-    inline int32_t timezoneOffsetSeconds() {
+    inline int32_t timezoneOffsetSeconds()
+    {
         return detail::timezoneOffsetSeconds_;
     }
 
     /// Alias for micros(). No provider hook — microsecond-grade external
     /// sources are rare enough that it would pay zero users, and the hot
     /// path matters for this getter.
-    inline tick_us_t nowUs() {
+    inline tick_us_t nowUs()
+    {
         return micros();
     }
 
@@ -196,18 +208,19 @@ namespace ungula::core::time {
 
     /// Format current time as "YYYY-MM-DD HH:MM:SS" UTC. Buffer must be
     /// at least 20 bytes.
-    inline size_t formatUtc(char* buf, size_t bufSize) {
+    inline size_t formatUtc(char *buf, size_t bufSize)
+    {
         if (detail::provider_ == nullptr || !detail::provider_->isValid()) {
             return 0;
         }
-        return formatIso8601(buf, bufSize, static_cast<time_t>(detail::provider_->nowMs() / 1000),
-                             0);
+        return formatIso8601(buf, bufSize, static_cast<time_t>(detail::provider_->nowMs() / 1000), 0);
     }
 
     /// Format current time as "YYYY-MM-DD HH:MM:SS" in the configured
     /// local zone (the offset set via `setTimezone()` or
     /// `setTimezoneOffsetSeconds()`).
-    inline size_t formatLocal(char* buf, size_t bufSize) {
+    inline size_t formatLocal(char *buf, size_t bufSize)
+    {
         if (detail::provider_ == nullptr || !detail::provider_->isValid()) {
             return 0;
         }
@@ -218,12 +231,12 @@ namespace ungula::core::time {
     /// Format current time with a custom strftime spec, in the configured
     /// local zone. For arbitrary epoch values + custom formats, call the
     /// 5-arg `format()` directly.
-    inline size_t formatNow(char* buf, size_t bufSize, const char* strftimeFmt) {
+    inline size_t formatNow(char *buf, size_t bufSize, const char *strftimeFmt)
+    {
         if (detail::provider_ == nullptr || !detail::provider_->isValid()) {
             return 0;
         }
-        return format(buf, bufSize, strftimeFmt,
-                      static_cast<time_t>(detail::provider_->nowMs() / 1000),
+        return format(buf, bufSize, strftimeFmt, static_cast<time_t>(detail::provider_->nowMs() / 1000),
                       detail::timezoneOffsetSeconds_);
     }
 
@@ -232,37 +245,45 @@ namespace ungula::core::time {
     // setSyncTime() is called once per sync event (cheap: one subtraction).
     // syncNow() is called on every read (cheap: one addition).
 
-    inline void setSyncTime(tick_ms_t remoteMs) {
+    inline void setSyncTime(tick_ms_t remoteMs)
+    {
         detail::sync_.offsetMs = remoteMs - millis();
         detail::sync_.active = true;
     }
 
-    inline void setSyncTimeUs(tick_us_t remoteUs) {
+    inline void setSyncTimeUs(tick_us_t remoteUs)
+    {
         detail::sync_.offsetUs = remoteUs - micros();
         detail::sync_.active = true;
     }
 
-    inline tick_ms_t syncNow() {
+    inline tick_ms_t syncNow()
+    {
         return millis() + detail::sync_.offsetMs;
     }
 
-    inline tick_us_t syncNowUs() {
+    inline tick_us_t syncNowUs()
+    {
         return micros() + detail::sync_.offsetUs;
     }
 
-    inline int64_t syncOffset() {
+    inline int64_t syncOffset()
+    {
         return detail::sync_.offsetMs;
     }
 
-    inline int64_t syncOffsetUs() {
+    inline int64_t syncOffsetUs()
+    {
         return detail::sync_.offsetUs;
     }
 
-    inline bool isSynced() {
+    inline bool isSynced()
+    {
         return detail::sync_.active;
     }
 
-    inline void clearSync() {
+    inline void clearSync()
+    {
         detail::sync_.offsetMs = 0;
         detail::sync_.offsetUs = 0;
         detail::sync_.active = false;
@@ -272,16 +293,18 @@ namespace ungula::core::time {
 
     /// Alias for delayMs(). Kept short so call sites read naturally:
     ///   `ungula::core::time::delay(2000);`
-    inline void delay(duration_ms_t msv) {
+    inline void delay(duration_ms_t msv)
+    {
         delayMs(msv);
     }
 
     /// Cooperative yield. Prefer this over `delay(0)` for intent.
-    inline void yield() {
+    inline void yield()
+    {
         delayMs(0);
     }
 
-}  // namespace ungula::core::time
+} // namespace ungula::core::time
 
 // ---- Platform dispatch ----
 // Each platform header contains inline definitions of the platform-

@@ -6,17 +6,24 @@
 
 #include "esp32_preferences.h"
 
-namespace ungula::core::preferences {
+namespace ungula::core::preferences
+{
 
-    Esp32Preferences::Esp32Preferences() : handle_(0), opened_(false) {}
+    Esp32Preferences::Esp32Preferences()
+            : handle_(0)
+            , opened_(false)
+    {
+    }
 
-    Esp32Preferences::~Esp32Preferences() {
+    Esp32Preferences::~Esp32Preferences()
+    {
         if (opened_) {
             nvs_close(handle_);
         }
     }
 
-    bool Esp32Preferences::begin(const char* name) {
+    bool Esp32Preferences::begin(const char *name)
+    {
         if (opened_) {
             nvs_close(handle_);
             opened_ = false;
@@ -29,7 +36,8 @@ namespace ungula::core::preferences {
         return true;
     }
 
-    void Esp32Preferences::end() {
+    void Esp32Preferences::end()
+    {
         if (opened_) {
             nvs_close(handle_);
             handle_ = 0;
@@ -37,7 +45,8 @@ namespace ungula::core::preferences {
         }
     }
 
-    bool Esp32Preferences::putString(const char* key, const char* value) {
+    bool Esp32Preferences::putString(const char *key, const char *value)
+    {
         if (!opened_) {
             return false;
         }
@@ -47,7 +56,8 @@ namespace ungula::core::preferences {
         return nvs_commit(handle_) == ESP_OK;
     }
 
-    size_t Esp32Preferences::getString(const char* key, char* buf, size_t bufSize) const {
+    size_t Esp32Preferences::getString(const char *key, char *buf, size_t bufSize) const
+    {
         if (!opened_ || bufSize == 0) {
             return 0;
         }
@@ -68,10 +78,11 @@ namespace ungula::core::preferences {
             buf[0] = '\0';
             return 0;
         }
-        return len > 0 ? len - 1 : 0;  // Exclude null terminator from count
+        return len > 0 ? len - 1 : 0; // Exclude null terminator from count
     }
 
-    bool Esp32Preferences::putBytes(const char* key, const uint8_t* data, size_t len) {
+    bool Esp32Preferences::putBytes(const char *key, const uint8_t *data, size_t len)
+    {
         if (!opened_) {
             return false;
         }
@@ -81,7 +92,8 @@ namespace ungula::core::preferences {
         return nvs_commit(handle_) == ESP_OK;
     }
 
-    size_t Esp32Preferences::getBytes(const char* key, uint8_t* buf, size_t bufSize) const {
+    size_t Esp32Preferences::getBytes(const char *key, uint8_t *buf, size_t bufSize) const
+    {
         if (!opened_ || bufSize == 0) {
             return 0;
         }
@@ -92,7 +104,8 @@ namespace ungula::core::preferences {
         return len;
     }
 
-    bool Esp32Preferences::putUInt8(const char* key, uint8_t value) {
+    bool Esp32Preferences::putUInt8(const char *key, uint8_t value)
+    {
         if (!opened_) {
             return false;
         }
@@ -102,7 +115,8 @@ namespace ungula::core::preferences {
         return nvs_commit(handle_) == ESP_OK;
     }
 
-    uint8_t Esp32Preferences::getUInt8(const char* key, uint8_t defaultVal) const {
+    uint8_t Esp32Preferences::getUInt8(const char *key, uint8_t defaultVal) const
+    {
         if (!opened_) {
             return defaultVal;
         }
@@ -113,7 +127,8 @@ namespace ungula::core::preferences {
         return val;
     }
 
-    bool Esp32Preferences::putUInt32(const char* key, uint32_t value) {
+    bool Esp32Preferences::putUInt32(const char *key, uint32_t value)
+    {
         if (!opened_) {
             return false;
         }
@@ -123,7 +138,8 @@ namespace ungula::core::preferences {
         return nvs_commit(handle_) == ESP_OK;
     }
 
-    uint32_t Esp32Preferences::getUInt32(const char* key, uint32_t defaultVal) const {
+    uint32_t Esp32Preferences::getUInt32(const char *key, uint32_t defaultVal) const
+    {
         if (!opened_) {
             return defaultVal;
         }
@@ -134,7 +150,8 @@ namespace ungula::core::preferences {
         return val;
     }
 
-    bool Esp32Preferences::remove(const char* key) {
+    bool Esp32Preferences::remove(const char *key)
+    {
         if (!opened_) {
             return false;
         }
@@ -144,7 +161,8 @@ namespace ungula::core::preferences {
         return nvs_commit(handle_) == ESP_OK;
     }
 
-    bool Esp32Preferences::clear() {
+    bool Esp32Preferences::clear()
+    {
         if (!opened_) {
             return false;
         }
@@ -154,7 +172,8 @@ namespace ungula::core::preferences {
         return nvs_commit(handle_) == ESP_OK;
     }
 
-    bool Esp32Preferences::hasKey(const char* key) const {
+    bool Esp32Preferences::hasKey(const char *key) const
+    {
         if (!opened_) {
             return false;
         }
@@ -180,5 +199,5 @@ namespace ungula::core::preferences {
         return (err == ESP_OK);
     }
 
-}  // namespace ungula::core::preferences
-#endif  // ESP_PLATFORM
+} // namespace ungula::core::preferences
+#endif // ESP_PLATFORM

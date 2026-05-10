@@ -36,36 +36,37 @@
 //     }
 //   }
 
-namespace ungula::core::system {
+namespace ungula::core::system
+{
 
     struct HealthSample {
-            uint32_t free_heap;      // current free bytes (default heap caps)
-            uint32_t min_free_heap;  // minimum free ever observed since boot
-            int32_t delta;           // free_heap - previous_free_heap (0 on first sample)
-            uint32_t uptime_ms;      // monotonic uptime in milliseconds
+        uint32_t free_heap; // current free bytes (default heap caps)
+        uint32_t min_free_heap; // minimum free ever observed since boot
+        int32_t delta; // free_heap - previous_free_heap (0 on first sample)
+        uint32_t uptime_ms; // monotonic uptime in milliseconds
     };
 
     class HealthMonitor final {
-        public:
-            HealthMonitor() = default;
+    public:
+        HealthMonitor() = default;
 
-            // Take a sample if at least intervalMs have passed since the previous
-            // one. Returns true and fills `out` when a new sample was taken,
-            // false otherwise (in which case `out` is left untouched).
-            //
-            // The first call after construction always returns true with delta=0.
-            // Subsequent calls compute delta against the previous sample.
-            bool sample(uint32_t intervalMs, HealthSample& out);
+        // Take a sample if at least intervalMs have passed since the previous
+        // one. Returns true and fills `out` when a new sample was taken,
+        // false otherwise (in which case `out` is left untouched).
+        //
+        // The first call after construction always returns true with delta=0.
+        // Subsequent calls compute delta against the previous sample.
+        bool sample(uint32_t intervalMs, HealthSample &out);
 
-            // Force-reset the internal state — useful after a deliberate large
-            // allocation or free, so the next delta is measured against the new
-            // baseline rather than the pre-event one.
-            void reset();
+        // Force-reset the internal state — useful after a deliberate large
+        // allocation or free, so the next delta is measured against the new
+        // baseline rather than the pre-event one.
+        void reset();
 
-        private:
-            uint32_t last_sample_ms_ = 0;
-            uint32_t last_free_ = 0;
-            bool first_ = true;
+    private:
+        uint32_t last_sample_ms_ = 0;
+        uint32_t last_free_ = 0;
+        bool first_ = true;
     };
 
-}  // namespace ungula::core::system
+} // namespace ungula::core::system

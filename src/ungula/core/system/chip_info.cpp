@@ -10,26 +10,29 @@
 #include <soc/rtc.h>
 #include <cstring>
 
-namespace ungula::core::system {
+namespace ungula::core::system
+{
 
-    static const char* chipModelName(esp_chip_model_t model) {
+    static const char *chipModelName(esp_chip_model_t model)
+    {
         switch (model) {
-            case CHIP_ESP32:
-                return "ESP32";
-            case CHIP_ESP32S2:
-                return "ESP32-S2";
-            case CHIP_ESP32S3:
-                return "ESP32-S3";
-            case CHIP_ESP32C3:
-                return "ESP32-C3";
-            case CHIP_ESP32H2:
-                return "ESP32-H2";
-            default:
-                return "Unknown";
+        case CHIP_ESP32:
+            return "ESP32";
+        case CHIP_ESP32S2:
+            return "ESP32-S2";
+        case CHIP_ESP32S3:
+            return "ESP32-S3";
+        case CHIP_ESP32C3:
+            return "ESP32-C3";
+        case CHIP_ESP32H2:
+            return "ESP32-H2";
+        default:
+            return "Unknown";
         }
     }
 
-    ChipInfo queryChipInfo() {
+    ChipInfo queryChipInfo()
+    {
         ChipInfo info = {};
 
         esp_chip_info_t raw;
@@ -72,4 +75,4 @@ namespace ungula::core::system {
         return info;
     }
 
-}  // namespace ungula::core::system
+} // namespace ungula::core::system
