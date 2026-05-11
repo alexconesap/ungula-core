@@ -104,7 +104,7 @@ namespace
         ScriptedProvider p;
         // Real epoch-ms value — well beyond uint32_t. Verifies the wider
         // 64-bit path actually carries the full value.
-        constexpr int64_t kEpochMs = 1 '763' 808 '000' 000LL;
+        constexpr int64_t kEpochMs = 1'763'808'000'000LL;
         p.set(kEpochMs, /*valid=*/true);
         tc::setTimeProvider(&p);
 
@@ -115,7 +115,7 @@ namespace
     TEST_F(TimeControlTest, ProviderReportedInvalidFallsBackToLocal)
     {
         ScriptedProvider p;
-        p.set(1 '763' 808 '000' 000LL, /*valid=*/false);
+        p.set(1'763'808'000'000LL, /*valid=*/false);
         tc::setTimeProvider(&p);
 
         // Provider says "don't trust me" → now() must fall back to the
@@ -163,7 +163,7 @@ namespace
     TEST_F(TimeControlTest, NowLocalAppliesStoredOffset)
     {
         ScriptedProvider p;
-        constexpr int64_t kEpochMs = 1 '700' 000 '000' 000LL;
+        constexpr int64_t kEpochMs = 1'700'000'000'000LL;
         p.set(kEpochMs, true);
         tc::setTimeProvider(&p);
 
@@ -179,7 +179,7 @@ namespace
     TEST_F(TimeControlTest, NowInTzIsIndependentOfStoredOffset)
     {
         ScriptedProvider p;
-        constexpr int64_t kEpochMs = 1 '700' 000 '000' 000LL;
+        constexpr int64_t kEpochMs = 1'700'000'000'000LL;
         p.set(kEpochMs, true);
         tc::setTimeProvider(&p);
 
@@ -210,7 +210,7 @@ namespace
     TEST_F(TimeControlTest, SetTimezoneNamedFlowsThroughNowLocal)
     {
         ScriptedProvider p;
-        constexpr int64_t kEpochMs = 1 '700' 000 '000' 000LL;
+        constexpr int64_t kEpochMs = 1'700'000'000'000LL;
         p.set(kEpochMs, true);
         tc::setTimeProvider(&p);
 
@@ -365,7 +365,7 @@ namespace
         // that nowLocal() returns the expected wall time for both halves of
         // the year (PST and PDT).
         ScriptedProvider clock;
-        constexpr int64_t kUtcMs = 1 '700' 000 '000' 000LL; // 2023-11-14 22:13:20 UTC
+        constexpr int64_t kUtcMs = 1'700'000'000'000LL; // 2023-11-14 22:13:20 UTC
         clock.set(kUtcMs, true);
         tc::setTimeProvider(&clock);
 
@@ -382,7 +382,7 @@ namespace
     TEST_F(TimeControlTest, NowLocalForBarcelona)
     {
         ScriptedProvider clock;
-        constexpr int64_t kUtcMs = 1 '700' 000 '000' 000LL;
+        constexpr int64_t kUtcMs = 1'700'000'000'000LL;
         clock.set(kUtcMs, true);
         tc::setTimeProvider(&clock);
 
@@ -400,7 +400,7 @@ namespace
         // Switching between LA and Barcelona at runtime must take effect on
         // the very next nowLocal() call — no caching, no init-only state.
         ScriptedProvider clock;
-        constexpr int64_t kUtcMs = 1 '700' 000 '000' 000LL;
+        constexpr int64_t kUtcMs = 1'700'000'000'000LL;
         clock.set(kUtcMs, true);
         tc::setTimeProvider(&clock);
 
@@ -421,7 +421,7 @@ namespace
         // for code that does e.g. "render Barcelona time in a UI tooltip
         // while the device is configured for Los Angeles".
         ScriptedProvider clock;
-        constexpr int64_t kUtcMs = 1 '700' 000 '000' 000LL;
+        constexpr int64_t kUtcMs = 1'700'000'000'000LL;
         clock.set(kUtcMs, true);
         tc::setTimeProvider(&clock);
 
@@ -450,7 +450,7 @@ namespace
     {
         ScriptedProvider clock;
         // 1700000000 sec = 2023-11-14 22:13:20 UTC. As ms: ×1000.
-        clock.set(1 '700' 000 '000' 000LL, true);
+        clock.set(1'700'000'000'000LL, true);
         tc::setTimeProvider(&clock);
 
         char buf[32] = {};
@@ -462,7 +462,7 @@ namespace
     TEST_F(TimeControlTest, FormatLocalAppliesStoredOffset)
     {
         ScriptedProvider clock;
-        clock.set(1 '700' 000 '000' 000LL, true);
+        clock.set(1'700'000'000'000LL, true);
         tc::setTimeProvider(&clock);
 
         tc::setTimezone(tz::Timezone::PST_NA); // -8:00
@@ -478,7 +478,7 @@ namespace
     TEST_F(TimeControlTest, FormatNowCustomSpecHonoursStoredOffset)
     {
         ScriptedProvider clock;
-        clock.set(1 '700' 000 '000' 000LL, true);
+        clock.set(1'700'000'000'000LL, true);
         tc::setTimeProvider(&clock);
         tc::setTimezone(tz::Timezone::JST); // +9:00
 
@@ -492,7 +492,7 @@ namespace
         ScriptedProvider p;
         p.set(1'234'567'890LL, true);
         tc::setTimeProvider(&p);
-        tc::setTimezoneOffsetSeconds(7 * 3600);  // would shift if used
+        tc::setTimezoneOffsetSeconds(7 * 3600); // would shift if used
 
         // now() / nowUtc() must IGNORE the stored offset.
         EXPECT_EQ(tc::now(), 1'234'567'890LL);
@@ -515,7 +515,7 @@ namespace
         // Inject a coordinator's ms. syncNow() should land near that value
         // for a short window after injection (before too much local time
         // has elapsed).
-        const int64_t coordinatorMs = 42 '000' 000LL;
+        const int64_t coordinatorMs = 42'000'000LL;
         tc::setSyncTime(coordinatorMs);
         EXPECT_TRUE(tc::isSynced());
 
