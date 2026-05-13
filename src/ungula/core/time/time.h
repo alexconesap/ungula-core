@@ -50,7 +50,7 @@
 /// ## Usage
 ///
 /// ```cpp
-///   #include <ungula/core/time/time_control.h>
+///   #include <ungula/core/time/time.h>
 ///   namespace tc = ungula::core::time;
 ///   tc::delay(2000);
 ///   auto t = tc::millis();

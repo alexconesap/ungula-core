@@ -4,7 +4,7 @@
 
 #include "ungula/core/system/health_monitor.h"
 
-#include "ungula/core/time/time_control.h"
+#include "ungula/core/time/time.h"
 
 #if defined(ESP_PLATFORM)
 #include "esp_heap_caps.h"

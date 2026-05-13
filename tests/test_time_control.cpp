@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <ungula/core/time/i_time_provider.h>
-#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/time.h>
 #include <ungula/core/time/timezones.h>
 
 #include <cstdint>

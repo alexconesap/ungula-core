@@ -8,7 +8,7 @@
 ///
 /// Pure ESP-IDF — FreeRTOS for coarse delays, esp_timer for monotonic
 /// time, esp_rom_delay_us for busy-wait microsecond delays. Reached via
-/// the `#if defined(ESP_PLATFORM)` branch of `time_control.h`.
+/// the `#if defined(ESP_PLATFORM)` branch of `time.h`.
 ///
 /// `esp_timer_get_time()` returns int64_t microseconds — feeding it
 /// straight through (no narrowing) is the whole point of the int64_t

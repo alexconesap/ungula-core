@@ -4,7 +4,7 @@
 
 #include "ungula/core/system/system_reboot.h"
 
-#include "ungula/core/time/time_control.h"
+#include "ungula/core/time/time.h"
 
 #if defined(ESP_PLATFORM)
 #include "esp_system.h"

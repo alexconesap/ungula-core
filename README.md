@@ -23,25 +23,25 @@ Then include whatever component you need in your code:
 #include "ungula/core/util/string_utils.h"
 #include "ungula/core/util/queue.h"
 #include "ungula/core/util/crc32.h"
-#include "ungula/core/time/time_control.h"
+#include "ungula/core/time/time.h"
 #include "ungula/core/system/system_reboot.h"
 ...
 ```
 
 ## Time Control (`ungula/core/time/`)
 
-Portable time abstraction. Free functions in `ungula::core::time` — no class to instantiate, no `TimeControl::` prefix. `time_control.h` is the only header your code ever includes; it dispatches to a platform-specific backend at build time:
+Portable time abstraction. Free functions in `ungula::core::time` — no class to instantiate, no `TimeControl::` prefix. `time.h` is the only header your code ever includes; it dispatches to a platform-specific backend at build time:
 
 ```text
 ungula/core/time/
-  time_control.h                       # public API (unchanged)
+  time.h                               # public API (unchanged)
   i_time_provider.h                    # pluggable clock source
   platforms/
     time_control_esp32.h               # ESP-IDF: FreeRTOS + esp_timer
     time_control_host.h                # std::chrono + std::thread (tests, STM32 fallback)
 ```
 
-Selection happens at the bottom of `time_control.h` via a single `#if defined(ESP_PLATFORM)`. Adding a new platform (STM32, etc.) means dropping one more file into `platforms/` and adding one `#elif` branch — no cross-platform `#ifdef` clutter inside any implementation file.
+Selection happens at the bottom of `time.h` via a single `#if defined(ESP_PLATFORM)`. Adding a new platform (STM32, etc.) means dropping one more file into `platforms/` and adding one `#elif` branch — no cross-platform `#ifdef` clutter inside any implementation file.
 
 ### Calling style
 
@@ -72,7 +72,7 @@ There is no `TimeControl::` class — every call is a free function on the names
 This is the main use case. Instead of doing `delay(10)` at the end of a loop (which accumulates drift from the work time), use `delayUntilMs`. It advances the reference by the period, not by "now + period", so you get consistent timing:
 
 ```cpp
-#include "ungula/core/time/time_control.h"
+#include "ungula/core/time/time.h"
 
 namespace tc = ungula::core::time;
 
@@ -163,7 +163,7 @@ The three aliases exist to make intent visible — same width, different meaning
 Project code should not have to remember that Tokyo is `9 * 3600`. Pick from the `Timezone` enum and pass it to `setTimezone()`. UTC is the default — call this only if the device should report wall time in some other zone.
 
 ```cpp
-#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/time.h>
 #include <ungula/core/time/timezones.h>
 
 namespace tz = ungula::core::time::tz;
@@ -178,7 +178,7 @@ tc::setTimezone(tz::Timezone::IST_IN);  // India  (+5:30)
 Pacific time observes DST: standard `PST_NA` (-8:00) in winter, daylight `PDT_NA` (-7:00) in summer. The library does not switch automatically — the application picks which one is in effect. Wire the choice to whatever signal makes sense for the project (a button, a config value, an NTP-derived `tm_isdst` flag, a date check):
 
 ```cpp
-#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/time.h>
 #include <ungula/core/time/timezones.h>
 
 namespace tz = ungula::core::time::tz;
@@ -245,7 +245,7 @@ The full mapping lives in `ungula/core/time/timezones.h` as a `constexpr` table 
 
 ```cpp
 #include "ungula/core/time/i_time_provider.h"
-#include "ungula/core/time/time_control.h"
+#include "ungula/core/time/time.h"
 
 using ungula::core::time::ITimeProvider;
 namespace tc = ungula::core::time;
@@ -302,7 +302,7 @@ Contract:
 Formatting belongs to the time API, not to the time *source*. NTP, an RTC chip, or a fake clock all hand back a `time_t` epoch — turning that into "YYYY-MM-DD HH:MM:SS" is the same operation regardless. The pure helper lives in `ungula/core/time/time_format.h` and `ungula::core::time` exposes thin wrappers that pass its current state to it.
 
 ```cpp
-#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/time.h>
 #include <ungula/core/time/timezones.h>
 
 namespace tz = ungula::core::time::tz;

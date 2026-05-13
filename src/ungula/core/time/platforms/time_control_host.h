@@ -10,10 +10,10 @@
 /// Used for desktop unit tests (no FreeRTOS available). Semantics match
 /// the ESP backend close enough that host tests exercise real code paths
 /// rather than a dedicated mock. Reached via the default `#else` branch
-/// of `time_control.h`; no cross-platform guards inside this file.
+/// of `time.h`; no cross-platform guards inside this file.
 ///
 /// All time values are int64_t end-to-end — see the comment at the top
-/// of `time_control.h` for the rationale.
+/// of `time.h` for the rationale.
 
 #include <chrono>
 #include <thread>

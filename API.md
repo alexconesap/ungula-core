@@ -40,7 +40,7 @@ inside the loop does not accumulate.
 ### Use case: Microsecond-grade sleep
 
 ```cpp
-#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/time.h>
 
 ungula::core::time::delayUs(250);   // ~250 µs busy-wait on ESP32
 ```
@@ -51,7 +51,7 @@ When to use this: bit-banging, short hardware-timing windows. Prefer
 ### Use case: Wall-clock time via a pluggable provider
 
 ```cpp
-#include <ungula/core/time/time_control.h>
+#include <ungula/core/time/time.h>
 #include <ungula/core/time/i_time_provider.h>
 
 class NtpClock : public ungula::core::time::ITimeProvider {
@@ -236,7 +236,7 @@ void printBootBanner() {
 
 | Type | Header | Purpose |
 | ---- | ------ | ------- |
-| `ungula::core::time` (namespace) | `ungula/core/time/time_control.h` | Free-function time/delay API |
+| `ungula::core::time` (namespace) | `ungula/core/time/time.h` | Free-function time/delay API |
 | `ungula::core::time::ITimeProvider` | `ungula/core/time/i_time_provider.h` | Pluggable wall-clock source |
 | `ungula::core::time::tz::Timezone` (enum) | `ungula/core/time/timezones.h` | Named UTC offset codes |
 | `ungula::core::preferences::IPreferences` | `ungula/core/preferences/core/i_preferences.h` | Abstract NVS interface |
@@ -488,7 +488,7 @@ No object in this library uses `new`/`delete` after construction.
 
 - `ungula/core/time/platforms/time_control_esp32.h`,
   `ungula/core/time/platforms/time_control_host.h` — picked automatically by
-  `time_control.h`. Never `#include` directly.
+  `time.h`. Never `#include` directly.
 - `ungula::core::time::detail::SyncState` and the inline-static storage
   members (`provider_`, `sync_`, `timezoneOffsetSeconds_`) —
   implementation detail of the namespace; do not reach into them.
@@ -521,7 +521,7 @@ No object in this library uses `new`/`delete` after construction.
   porting aid and should not be the destination for new code.
 - All time values flowing through public APIs are `int64_t`. Don't
   truncate to `uint32_t` "to save space" — past 49 days it wraps.
-- Don't include `ungula/core/time/platforms/*` headers; let `time_control.h`
+- Don't include `ungula/core/time/platforms/*` headers; let `time.h`
   dispatch.
 - Don't read or write the `programs` NVS namespace by hand — that's
   `ProgramStore`'s territory.

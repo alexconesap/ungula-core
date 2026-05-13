@@ -20,7 +20,7 @@
 #include "ungula/core/preferences/core/i_preferences.h"
 
 // Time / Delay control
-#include "ungula/core/time/time_control.h"
+#include "ungula/core/time/time.h"
 
 // System Control (Reboot, runtime health)
 #include "ungula/core/system/health_monitor.h"
