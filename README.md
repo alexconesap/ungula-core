@@ -30,7 +30,7 @@ Then include whatever component you need in your code:
 
 ## Time Control (`ungula/core/time/`)
 
-Portable time abstraction. Free functions in `ungula::core::time` — no class to instantiate, no `TimeControl::` prefix. `time.h` is the only header your code ever includes; it dispatches to a platform-specific backend at build time:
+Portable time abstraction. Free functions in `ungula::core::time` — no class to instantiate. `time.h` is the only header your code ever includes; it dispatches to a platform-specific backend at build time:
 
 ```text
 ungula/core/time/
@@ -65,7 +65,7 @@ tc::delay(2000);
 auto t = tc::millis();
 ```
 
-There is no `TimeControl::` class — every call is a free function on the namespace.
+There is no class involved — every call is a free function on the namespace.
 
 ### Periodic Loop Without Drift
 
