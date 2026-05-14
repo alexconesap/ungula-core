@@ -15,8 +15,7 @@
 ///
 /// Public API is platform-independent — every project includes this header
 /// exactly the same way. The platform-specific implementation is selected
-/// at the bottom of this file via `#ifdef`, mirroring the pattern used by
-/// `hal/gpio/gpio_access.h`:
+/// at the bottom of this file via `#ifdef` as we do in other Ungula's libraries:
 ///
 ///   - ESP32 (`ESP_PLATFORM`) → `platforms/time_control_esp32.h`
 ///   - anything else          → `platforms/time_control_host.h` (std::chrono
