@@ -14,11 +14,11 @@
 namespace ungula::core::system
 {
 
-    constexpr uint8_t CHIP_MODEL_MAX_LEN = 24;
-    constexpr uint8_t SDK_VERSION_MAX_LEN = 24;
-    constexpr uint8_t CHIP_FEATURES_MAX_LEN = 80;
+constexpr uint8_t CHIP_MODEL_MAX_LEN = 24;
+constexpr uint8_t SDK_VERSION_MAX_LEN = 24;
+constexpr uint8_t CHIP_FEATURES_MAX_LEN = 80;
 
-    struct ChipInfo {
+struct ChipInfo {
         char model[CHIP_MODEL_MAX_LEN]; // e.g. "ESP32", "ESP32-S3", "STC32G"
         char sdkVersion[SDK_VERSION_MAX_LEN]; // e.g. "5.1.4", "N/A"
         char features[CHIP_FEATURES_MAX_LEN]; // e.g. "WiFi, BT, BLE, PSRAM"
@@ -28,9 +28,9 @@ namespace ungula::core::system
         bool hasBluetooth;
         bool hasBle;
         bool hasPsram;
-    };
+};
 
-    /// @brief Query current MCU info. Platform-specific implementation.
-    ChipInfo queryChipInfo();
+/// @brief Query current MCU info. Platform-specific implementation.
+ChipInfo queryChipInfo();
 
 } // namespace ungula::core::system

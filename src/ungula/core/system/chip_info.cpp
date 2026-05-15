@@ -13,26 +13,26 @@
 namespace ungula::core::system
 {
 
-    static const char *chipModelName(esp_chip_model_t model)
-    {
+static const char *chipModelName(esp_chip_model_t model)
+{
         switch (model) {
         case CHIP_ESP32:
-            return "ESP32";
+                return "ESP32";
         case CHIP_ESP32S2:
-            return "ESP32-S2";
+                return "ESP32-S2";
         case CHIP_ESP32S3:
-            return "ESP32-S3";
+                return "ESP32-S3";
         case CHIP_ESP32C3:
-            return "ESP32-C3";
+                return "ESP32-C3";
         case CHIP_ESP32H2:
-            return "ESP32-H2";
+                return "ESP32-H2";
         default:
-            return "Unknown";
+                return "Unknown";
         }
-    }
+}
 
-    ChipInfo queryChipInfo()
-    {
+ChipInfo queryChipInfo()
+{
         ChipInfo info = {};
 
         esp_chip_info_t raw;
@@ -57,22 +57,24 @@ namespace ungula::core::system
         // Build human-readable feature string
         info.features[0] = '\0';
         if (info.hasWifi) {
-            strncat(info.features, "WiFi", CHIP_FEATURES_MAX_LEN - strlen(info.features) - 1);
+                strncat(info.features, "WiFi", CHIP_FEATURES_MAX_LEN - strlen(info.features) - 1);
         }
         if (info.hasBluetooth) {
-            strncat(info.features, ", BT", CHIP_FEATURES_MAX_LEN - strlen(info.features) - 1);
+                strncat(info.features, ", BT", CHIP_FEATURES_MAX_LEN - strlen(info.features) - 1);
         }
         if (info.hasBle) {
-            strncat(info.features, ", BLE", CHIP_FEATURES_MAX_LEN - strlen(info.features) - 1);
+                strncat(info.features, ", BLE", CHIP_FEATURES_MAX_LEN - strlen(info.features) - 1);
         }
         if (info.hasPsram) {
-            strncat(info.features, ", PSRAM", CHIP_FEATURES_MAX_LEN - strlen(info.features) - 1);
+                strncat(info.features, ", PSRAM",
+                        CHIP_FEATURES_MAX_LEN - strlen(info.features) - 1);
         }
         if ((raw.features & CHIP_FEATURE_EMB_FLASH) != 0) {
-            strncat(info.features, ", EmbFlash", CHIP_FEATURES_MAX_LEN - strlen(info.features) - 1);
+                strncat(info.features, ", EmbFlash",
+                        CHIP_FEATURES_MAX_LEN - strlen(info.features) - 1);
         }
 
         return info;
-    }
+}
 
 } // namespace ungula::core::system

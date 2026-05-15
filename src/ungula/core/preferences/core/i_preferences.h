@@ -9,8 +9,8 @@
 namespace ungula::core::preferences
 {
 
-    /// Abstract interface for persistent key-value storage
-    class IPreferences {
+/// Abstract interface for persistent key-value storage
+class IPreferences {
     public:
         virtual ~IPreferences() = default;
 
@@ -57,6 +57,6 @@ namespace ungula::core::preferences
 
         /// Check if a key exists
         virtual bool hasKey(const char *key) const = 0;
-    };
+};
 
 } // namespace ungula::core::preferences

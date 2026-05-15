@@ -9,18 +9,18 @@
 namespace ungula::core::time
 {
 
-    /// @brief Pluggable source of absolute wall-clock time in milliseconds.
-    ///
-    /// `ungula::core::time::now()` falls back to the local monotonic
-    /// `millis()` when no provider is installed. Install one via
-    /// `ungula::core::time::setTimeProvider()` to route `now()` through a
-    /// different clock — an NTP sync, an RTC chip, a mocked source for
-    /// tests, etc.
-    ///
-    /// Implementations must be cheap (called on every `now()`) and must
-    /// report honestly via `isValid()` whether the returned value is usable.
-    /// When `isValid()` is false, `now()` falls back to the local clock.
-    class ITimeProvider {
+/// @brief Pluggable source of absolute wall-clock time in milliseconds.
+///
+/// `ungula::core::time::now()` falls back to the local monotonic
+/// `millis()` when no provider is installed. Install one via
+/// `ungula::core::time::setTimeProvider()` to route `now()` through a
+/// different clock — an NTP sync, an RTC chip, a mocked source for
+/// tests, etc.
+///
+/// Implementations must be cheap (called on every `now()`) and must
+/// report honestly via `isValid()` whether the returned value is usable.
+/// When `isValid()` is false, `now()` falls back to the local clock.
+class ITimeProvider {
     public:
         virtual ~ITimeProvider() = default;
 
@@ -39,6 +39,6 @@ namespace ungula::core::time
         /// True when `nowMs()` is trustworthy. Returning false makes
         /// `now()` fall back to the local monotonic clock.
         virtual bool isValid() const = 0;
-    };
+};
 
 } // namespace ungula::core::time

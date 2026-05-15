@@ -64,20 +64,20 @@
 namespace ungula::core::time
 {
 
-    using tick_ms_t = int64_t; /// monotonic ms since boot
-    using tick_us_t = int64_t; /// monotonic us since boot
-    using duration_ms_t = int64_t; /// delays, intervals, remaining time
-    using duration_us_t = int64_t;
-    using epoch_ms_t = int64_t; /// Unix epoch ms (signed for delta arithmetic)
+using tick_ms_t = int64_t; /// monotonic ms since boot
+using tick_us_t = int64_t; /// monotonic us since boot
+using duration_ms_t = int64_t; /// delays, intervals, remaining time
+using duration_us_t = int64_t;
+using epoch_ms_t = int64_t; /// Unix epoch ms (signed for delta arithmetic)
 
-    namespace detail
-    {
+namespace detail
+{
 
         /// Sync offset between local and coordinator clocks.
         struct SyncState {
-            int64_t offsetMs;
-            int64_t offsetUs;
-            bool active;
+                int64_t offsetMs;
+                int64_t offsetUs;
+                bool active;
         };
 
         // C++17 inline statics — module-private state, single definition
@@ -86,222 +86,239 @@ namespace ungula::core::time
         inline SyncState sync_ = { 0, 0, false };
         inline int32_t timezoneOffsetSeconds_ = 0;
 
-    } // namespace detail
+} // namespace detail
 
-    // ---- Local clock (platform-provided; defined in platform header) ----
+// ---- Local clock (platform-provided; defined in platform header) ----
 
-    /// Monotonic millisecond tick since boot. Effectively never wraps.
-    tick_ms_t millis();
+/// Monotonic millisecond tick since boot. Effectively never wraps.
+tick_ms_t millis();
 
-    /// Monotonic microsecond tick since boot. Effectively never wraps
-    /// (matches ESP-IDF's native `esp_timer_get_time()` width).
-    tick_us_t micros();
+/// Monotonic microsecond tick since boot. Effectively never wraps
+/// (matches ESP-IDF's native `esp_timer_get_time()` width).
+tick_us_t micros();
 
-    // ---- Delays (platform-provided; defined in platform header) ----
+// ---- Delays (platform-provided; defined in platform header) ----
 
-    void delayMs(duration_ms_t msv);
-    void delayUs(duration_us_t usv);
+void delayMs(duration_ms_t msv);
+void delayUs(duration_us_t usv);
 
-    /// Wait until the next periodic boundary, then advance 'reference' by
-    /// periodMs. Drift-free: 'reference' is bumped by the period, not
-    /// reset to now.
-    ///
-    /// Example — run something every 50ms:
-    /// ```cpp
-    ///   auto ref = ungula::core::time::millis();
-    ///   while (running) {
-    ///       readSensors();
-    ///       sendStatus();
-    ///       ungula::core::time::delayUntilMs(ref, 50);
-    ///   }
-    /// ```
-    void delayUntilMs(tick_ms_t &reference, duration_ms_t periodMs);
+/// Wait until the next periodic boundary, then advance 'reference' by
+/// periodMs. Drift-free: 'reference' is bumped by the period, not
+/// reset to now.
+///
+/// Example — run something every 50ms:
+/// ```cpp
+///   auto ref = ungula::core::time::millis();
+///   while (running) {
+///       readSensors();
+///       sendStatus();
+///       ungula::core::time::delayUntilMs(ref, 50);
+///   }
+/// ```
+void delayUntilMs(tick_ms_t &reference, duration_ms_t periodMs);
 
-    /// Same idea in microseconds. Best-effort — relies on busy-wait.
-    void delayUntilUs(tick_us_t &reference, duration_us_t periodUs);
+/// Same idea in microseconds. Best-effort — relies on busy-wait.
+void delayUntilUs(tick_us_t &reference, duration_us_t periodUs);
 
-    // ---- Time provider hook ----
+// ---- Time provider hook ----
 
-    inline void setTimeProvider(ITimeProvider *provider)
-    {
+inline void setTimeProvider(ITimeProvider *provider)
+{
         detail::provider_ = provider;
-    }
+}
 
-    inline void clearTimeProvider()
-    {
+inline void clearTimeProvider()
+{
         detail::provider_ = nullptr;
-    }
+}
 
-    /// Provider-aware current time, UTC. Routes through the installed
-    /// ITimeProvider when one is present and reports itself valid;
-    /// otherwise returns the local monotonic `millis()` (which is
-    /// monotonic-since-boot, NOT a real wall-clock value, until a
-    /// provider is installed).
-    ///
-    /// Returns UTC by convention. Use `nowLocal()` for the configured
-    /// timezone, or `nowInTz()` for an arbitrary one.
-    inline epoch_ms_t now()
-    {
+/// Provider-aware current time, UTC. Routes through the installed
+/// ITimeProvider when one is present and reports itself valid;
+/// otherwise returns the local monotonic `millis()` (which is
+/// monotonic-since-boot, NOT a real wall-clock value, until a
+/// provider is installed).
+///
+/// Returns UTC by convention. Use `nowLocal()` for the configured
+/// timezone, or `nowInTz()` for an arbitrary one.
+inline epoch_ms_t now()
+{
         if (detail::provider_ != nullptr && detail::provider_->isValid()) {
-            return detail::provider_->nowMs();
+                return detail::provider_->nowMs();
         }
         return millis();
-    }
+}
 
-    /// Explicit UTC alias. Same as `now()`.
-    inline epoch_ms_t nowUtc()
-    {
+/// Explicit UTC alias. Same as `now()`.
+inline epoch_ms_t nowUtc()
+{
         return now();
-    }
+}
 
-    /// Wall-clock in the timezone configured via
-    /// `setTimezoneOffsetSeconds()`. Equals `now()` until that setter
-    /// has been called.
-    inline epoch_ms_t nowLocal()
-    {
+/// Wall-clock in the timezone configured via
+/// `setTimezoneOffsetSeconds()`. Equals `now()` until that setter
+/// has been called.
+inline epoch_ms_t nowLocal()
+{
         return now() + (static_cast<int64_t>(detail::timezoneOffsetSeconds_) * 1000);
-    }
+}
 
-    /// Wall-clock in an arbitrary timezone — caller supplies the offset
-    /// in seconds from UTC (e.g. -5 * 3600 for EST). Does NOT consult or
-    /// change the stored offset.
-    inline epoch_ms_t nowInTz(int32_t offsetSeconds)
-    {
+/// Wall-clock in an arbitrary timezone — caller supplies the offset
+/// in seconds from UTC (e.g. -5 * 3600 for EST). Does NOT consult or
+/// change the stored offset.
+inline epoch_ms_t nowInTz(int32_t offsetSeconds)
+{
         return now() + (static_cast<int64_t>(offsetSeconds) * 1000);
-    }
+}
 
-    /// Set the offset used by `nowLocal()`. Default is 0 (UTC). No DST
-    /// awareness — for that, use the NTP client's strftime-based formatters.
-    inline void setTimezoneOffsetSeconds(int32_t offsetSeconds)
-    {
+/// Set the offset used by `nowLocal()`. Default is 0 (UTC). No DST
+/// awareness — for that, use the NTP client's strftime-based formatters.
+inline void setTimezoneOffsetSeconds(int32_t offsetSeconds)
+{
         detail::timezoneOffsetSeconds_ = offsetSeconds;
-    }
+}
 
-    /// Convenience overload — pick a named zone instead of a raw offset.
-    /// Use the entries from `time/timezones.h` so the project never
-    /// hard-codes "what is the offset for Tokyo".
-    inline void setTimezone(tz::Timezone zone)
-    {
+/// Convenience overload — pick a named zone instead of a raw offset.
+/// Use the entries from `time/timezones.h` so the project never
+/// hard-codes "what is the offset for Tokyo".
+inline void setTimezone(tz::Timezone zone)
+{
         detail::timezoneOffsetSeconds_ = tz::offsetSeconds(zone);
-    }
+}
 
-    inline int32_t timezoneOffsetSeconds()
-    {
+inline int32_t timezoneOffsetSeconds()
+{
         return detail::timezoneOffsetSeconds_;
-    }
+}
 
-    /// Alias for micros(). No provider hook — microsecond-grade external
-    /// sources are rare enough that it would pay zero users, and the hot
-    /// path matters for this getter.
-    inline tick_us_t nowUs()
-    {
+/// Alias for micros(). No provider hook — microsecond-grade external
+/// sources are rare enough that it would pay zero users, and the hot
+/// path matters for this getter.
+inline tick_us_t nowUs()
+{
         return micros();
-    }
+}
 
-    // ---- Formatting ----
-    //
-    // Print the current time as a human-readable string. Returns 0 when
-    // no valid time provider is installed — formatting a monotonic-since-
-    // boot tick as a wall-clock date would just print "1970-01-01
-    // 00:00:NN", which is misleading.
+// ---- Formatting ----
+//
+// Print the current time as a human-readable string. Returns 0 when
+// no valid time provider is installed — formatting a monotonic-since-
+// boot tick as a wall-clock date would just print "1970-01-01
+// 00:00:NN", which is misleading.
 
-    /// Format current time as "YYYY-MM-DD HH:MM:SS" UTC. Buffer must be
-    /// at least 20 bytes.
-    inline size_t formatUtc(char *buf, size_t bufSize)
-    {
+/// Format current time as "YYYY-MM-DD HH:MM:SS" UTC. Buffer must be
+/// at least 20 bytes.
+inline size_t formatUtc(char *buf, size_t bufSize)
+{
         if (detail::provider_ == nullptr || !detail::provider_->isValid()) {
-            return 0;
+                return 0;
         }
-        return formatIso8601(buf, bufSize, static_cast<time_t>(detail::provider_->nowMs() / 1000), 0);
-    }
+        return formatIso8601(buf, bufSize, static_cast<time_t>(detail::provider_->nowMs() / 1000),
+                             0);
+}
 
-    /// Format current time as "YYYY-MM-DD HH:MM:SS" in the configured
-    /// local zone (the offset set via `setTimezone()` or
-    /// `setTimezoneOffsetSeconds()`).
-    inline size_t formatLocal(char *buf, size_t bufSize)
-    {
+/// Format current time as "YYYY-MM-DD HH:MM:SS" in the configured
+/// local zone (the offset set via `setTimezone()` or
+/// `setTimezoneOffsetSeconds()`).
+inline size_t formatLocal(char *buf, size_t bufSize)
+{
         if (detail::provider_ == nullptr || !detail::provider_->isValid()) {
-            return 0;
+                return 0;
         }
         return formatIso8601(buf, bufSize, static_cast<time_t>(detail::provider_->nowMs() / 1000),
                              detail::timezoneOffsetSeconds_);
-    }
+}
 
-    /// Format current time with a custom strftime spec, in the configured
-    /// local zone. For arbitrary epoch values + custom formats, call the
-    /// 5-arg `format()` directly.
-    inline size_t formatNow(char *buf, size_t bufSize, const char *strftimeFmt)
-    {
+/// Format current time with a custom strftime spec, in the configured
+/// local zone. For arbitrary epoch values + custom formats, call the
+/// 5-arg `format()` directly.
+inline size_t formatNow(char *buf, size_t bufSize, const char *strftimeFmt)
+{
         if (detail::provider_ == nullptr || !detail::provider_->isValid()) {
-            return 0;
+                return 0;
         }
-        return format(buf, bufSize, strftimeFmt, static_cast<time_t>(detail::provider_->nowMs() / 1000),
+        return format(buf, bufSize, strftimeFmt,
+                      static_cast<time_t>(detail::provider_->nowMs() / 1000),
                       detail::timezoneOffsetSeconds_);
-    }
+}
 
-    // ---- Network-synced clock ----
-    // Stores offset between local clock and a remote coordinator's clock.
-    // setSyncTime() is called once per sync event (cheap: one subtraction).
-    // syncNow() is called on every read (cheap: one addition).
+// ---- Network-synced clock ----
+// Stores offset between local clock and a remote coordinator's clock.
+// setSyncTime() is called once per sync event (cheap: one subtraction).
+// syncNow() is called on every read (cheap: one addition).
 
-    inline void setSyncTime(tick_ms_t remoteMs)
-    {
+inline void setSyncTime(tick_ms_t remoteMs)
+{
         detail::sync_.offsetMs = remoteMs - millis();
         detail::sync_.active = true;
-    }
+}
 
-    inline void setSyncTimeUs(tick_us_t remoteUs)
-    {
+inline void setSyncTimeUs(tick_us_t remoteUs)
+{
         detail::sync_.offsetUs = remoteUs - micros();
         detail::sync_.active = true;
-    }
+}
 
-    inline tick_ms_t syncNow()
-    {
+inline tick_ms_t syncNow()
+{
         return millis() + detail::sync_.offsetMs;
-    }
+}
 
-    inline tick_us_t syncNowUs()
-    {
+inline tick_us_t syncNowUs()
+{
         return micros() + detail::sync_.offsetUs;
-    }
+}
 
-    inline int64_t syncOffset()
-    {
+inline int64_t syncOffset()
+{
         return detail::sync_.offsetMs;
-    }
+}
 
-    inline int64_t syncOffsetUs()
-    {
+inline int64_t syncOffsetUs()
+{
         return detail::sync_.offsetUs;
-    }
+}
 
-    inline bool isSynced()
-    {
+inline bool isSynced()
+{
         return detail::sync_.active;
-    }
+}
 
-    inline void clearSync()
-    {
+inline void clearSync()
+{
         detail::sync_.offsetMs = 0;
         detail::sync_.offsetUs = 0;
         detail::sync_.active = false;
-    }
+}
 
-    // ---- Convenience delays ----
+// ---- Convenience delays ----
 
-    /// Alias for delayMs(). Kept short so call sites read naturally:
-    ///   `ungula::core::time::delay(2000);`
-    inline void delay(duration_ms_t msv)
-    {
+/// Alias for delayMs(). Kept short so call sites read naturally:
+///   `ungula::core::time::delay(2000);`
+inline void delay(duration_ms_t msv)
+{
         delayMs(msv);
-    }
+}
 
-    /// Cooperative yield. Prefer this over `delay(0)` for intent.
-    inline void yield()
-    {
-        delayMs(0);
-    }
+/// Minimum-delay cooperative yield. Guaranteed to drop the current
+/// task long enough that the lowest-priority task on the system gets
+/// a chance to run — on FreeRTOS targets that's the IDLE task that
+/// feeds the watchdog.
+///
+/// Why this exists: the obvious "yield" (`delay(0)`, or `vTaskDelay(0)`,
+/// or `std::this_thread::yield()`) does NOT block. On ESP-IDF with the
+/// stock 100 Hz tick, even `delay(1)` rounds down to zero ticks and
+/// `vTaskDelay(0)` only triggers a `taskYIELD()` that can't reach IDLE
+/// (IDLE is priority 0; the main task is priority 1). Call `yield()`
+/// from a tight supervisory loop and you can be confident the watchdog
+/// gets fed without knowing the tick rate of your target.
+///
+/// Cost: one scheduler tick on RTOS targets (10 ms on stock ESP-IDF,
+/// 1 ms if `CONFIG_FREERTOS_HZ` is raised to 1000). On host, one
+/// `std::this_thread::yield()` — does not block.
+///
+/// Declared here; defined in the platform header for the actual
+/// minimum-blocking semantics per kernel.
+void yield();
 
 } // namespace ungula::core::time
 

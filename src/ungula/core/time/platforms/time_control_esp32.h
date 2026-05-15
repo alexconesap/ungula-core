@@ -32,49 +32,49 @@
 namespace ungula::core::time::detail
 {
 
-    // Hybrid delayUntilUs thresholds: coarse sleep for large gaps,
-    // tighter spin near the target. Guards shave off the worst-case
-    // overshoot from the sleep helper.
-    inline constexpr int64_t COARSE_THRESHOLD_US = 1000;
-    inline constexpr int64_t COARSE_GUARD_US = 200;
-    inline constexpr int64_t FINE_THRESHOLD_US = 50;
-    inline constexpr int64_t FINE_GUARD_US = 10;
+// Hybrid delayUntilUs thresholds: coarse sleep for large gaps,
+// tighter spin near the target. Guards shave off the worst-case
+// overshoot from the sleep helper.
+inline constexpr int64_t COARSE_THRESHOLD_US = 1000;
+inline constexpr int64_t COARSE_GUARD_US = 200;
+inline constexpr int64_t FINE_THRESHOLD_US = 50;
+inline constexpr int64_t FINE_GUARD_US = 10;
 
 } // namespace ungula::core::time::detail
 
 namespace ungula::core::time
 {
 
-    inline tick_ms_t millis()
-    {
+inline tick_ms_t millis()
+{
         return esp_timer_get_time() / 1000;
-    }
+}
 
-    inline tick_us_t micros()
-    {
+inline tick_us_t micros()
+{
         return esp_timer_get_time();
-    }
+}
 
-    inline void delayMs(duration_ms_t msv)
-    {
+inline void delayMs(duration_ms_t msv)
+{
         if (msv <= 0) {
-            return;
+                return;
         }
         vTaskDelay(pdMS_TO_TICKS(static_cast<uint32_t>(msv)));
-    }
+}
 
-    inline void delayUs(duration_us_t usv)
-    {
+inline void delayUs(duration_us_t usv)
+{
         if (usv <= 0) {
-            return;
+                return;
         }
         esp_rom_delay_us(static_cast<uint32_t>(usv));
-    }
+}
 
-    inline void delayUntilMs(tick_ms_t &reference, duration_ms_t periodMs)
-    {
+inline void delayUntilMs(tick_ms_t &reference, duration_ms_t periodMs)
+{
         if (periodMs <= 0) {
-            return;
+                return;
         }
         // Translate the reference to RTOS ticks, let FreeRTOS handle the
         // scheduling, then translate back so the public type stays
@@ -88,28 +88,40 @@ namespace ungula::core::time
         const TickType_t safePeriodTicks = (periodTicks == 0U) ? 1U : periodTicks;
         vTaskDelayUntil(&refTicks, safePeriodTicks);
         reference = static_cast<tick_ms_t>(refTicks * portTICK_PERIOD_MS);
-    }
+}
 
-    inline void delayUntilUs(tick_us_t &reference, duration_us_t periodUs)
-    {
+inline void delayUntilUs(tick_us_t &reference, duration_us_t periodUs)
+{
         if (periodUs <= 0) {
-            return;
+                return;
         }
         const tick_us_t target = reference + periodUs;
         for (;;) {
-            const tick_us_t now = micros();
-            if (now >= target) {
-                break;
-            }
-            const int64_t remaining = target - now;
-            if (remaining > detail::COARSE_THRESHOLD_US) {
-                delayUs(remaining - detail::COARSE_GUARD_US);
-            } else if (remaining > detail::FINE_THRESHOLD_US) {
-                delayUs(remaining - detail::FINE_GUARD_US);
-            }
-            // Under the spin threshold: tight loop until target.
+                const tick_us_t now = micros();
+                if (now >= target) {
+                        break;
+                }
+                const int64_t remaining = target - now;
+                if (remaining > detail::COARSE_THRESHOLD_US) {
+                        delayUs(remaining - detail::COARSE_GUARD_US);
+                } else if (remaining > detail::FINE_THRESHOLD_US) {
+                        delayUs(remaining - detail::FINE_GUARD_US);
+                }
+                // Under the spin threshold: tight loop until target.
         }
         reference = target;
-    }
+}
+
+/// Minimum-delay cooperative yield on ESP-IDF. One FreeRTOS tick of
+/// `vTaskDelay` — guaranteed to suspend the calling task long enough
+/// that the lowest-priority task (IDLE0 / IDLE1, which feed the task
+/// watchdog) gets scheduled.
+///
+/// Cost: exactly one FreeRTOS tick. With stock `CONFIG_FREERTOS_HZ=100`
+/// that's 10 ms; if the project sets it to 1000 that's 1 ms.
+inline void yield()
+{
+        vTaskDelay(1);
+}
 
 } // namespace ungula::core::time

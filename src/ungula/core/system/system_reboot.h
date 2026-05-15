@@ -9,13 +9,13 @@
 namespace ungula::core::system
 {
 
-    class SystemControl final {
+class SystemControl final {
     public:
         SystemControl() = delete;
         ~SystemControl() = delete;
 
         static void reboot();
         static void rebootAfterMs(uint32_t waitTimeMs);
-    };
+};
 
 } // namespace ungula::core::system

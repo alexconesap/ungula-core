@@ -30,10 +30,10 @@
 namespace ungula::core::time::tz
 {
 
-    /// @brief Named timezones. Stable across versions — entries can
-    /// be added at the end, but existing values must not be reordered
-    /// since downstream code may be persisting them as integers.
-    enum class Timezone : uint8_t {
+/// @brief Named timezones. Stable across versions — entries can
+/// be added at the end, but existing values must not be reordered
+/// since downstream code may be persisting them as integers.
+enum class Timezone : uint8_t {
         // ---- 0:00 family ----
         UTC = 0,
         GMT, // +0:00
@@ -77,17 +77,17 @@ namespace ungula::core::time::tz
         AKST, // -9:00 — Alaska Standard
         AKDT, // -8:00 — Alaska Daylight
         HST, // -10:00 — Hawaii Standard (no DST)
-    };
+};
 
-    struct Entry {
+struct Entry {
         Timezone tz;
         int32_t offsetSeconds;
         const char *abbreviation;
-    };
+};
 
-    /// Single source of truth for the (enum → offset, name) mapping.
-    /// `constexpr` so callers can use it at compile time too.
-    inline constexpr Entry TIMEZONES[] = {
+/// Single source of truth for the (enum → offset, name) mapping.
+/// `constexpr` so callers can use it at compile time too.
+inline constexpr Entry TIMEZONES[] = {
         { Timezone::UTC, 0, "UTC" },
         { Timezone::GMT, 0, "GMT" },
         { Timezone::WET, 0, "WET" },
@@ -130,30 +130,30 @@ namespace ungula::core::time::tz
         { Timezone::AKST, -9 * 3600, "AKST" },
         { Timezone::AKDT, -8 * 3600, "AKDT" },
         { Timezone::HST, -10 * 3600, "HST" },
-    };
+};
 
-    /// Resolve a Timezone to its UTC offset in seconds.
-    /// Linear scan, but the table is small and `constexpr` so the
-    /// compiler folds the whole thing for compile-time arguments.
-    constexpr int32_t offsetSeconds(Timezone tz)
-    {
+/// Resolve a Timezone to its UTC offset in seconds.
+/// Linear scan, but the table is small and `constexpr` so the
+/// compiler folds the whole thing for compile-time arguments.
+constexpr int32_t offsetSeconds(Timezone tz)
+{
         for (const auto &entry : TIMEZONES) {
-            if (entry.tz == tz) {
-                return entry.offsetSeconds;
-            }
+                if (entry.tz == tz) {
+                        return entry.offsetSeconds;
+                }
         }
         return 0;
-    }
+}
 
-    /// Resolve a Timezone to its short string ("UTC", "JST", "EST", ...).
-    constexpr const char *abbreviation(Timezone tz)
-    {
+/// Resolve a Timezone to its short string ("UTC", "JST", "EST", ...).
+constexpr const char *abbreviation(Timezone tz)
+{
         for (const auto &entry : TIMEZONES) {
-            if (entry.tz == tz) {
-                return entry.abbreviation;
-            }
+                if (entry.tz == tz) {
+                        return entry.abbreviation;
+                }
         }
         return "UTC";
-    }
+}
 
 } // namespace ungula::core::time::tz

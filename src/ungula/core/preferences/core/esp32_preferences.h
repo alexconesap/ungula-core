@@ -12,9 +12,9 @@
 namespace ungula::core::preferences
 {
 
-    /// Pure ESP-IDF NVS implementation of IPreferences.
-    /// Uses nvs_flash API directly — no Arduino dependency.
-    class Esp32Preferences : public IPreferences {
+/// Pure ESP-IDF NVS implementation of IPreferences.
+/// Uses nvs_flash API directly — no Arduino dependency.
+class Esp32Preferences : public IPreferences {
     public:
         Esp32Preferences();
         ~Esp32Preferences() override;
@@ -36,7 +36,7 @@ namespace ungula::core::preferences
     private:
         nvs_handle_t handle_;
         bool opened_;
-    };
+};
 
 } // namespace ungula::core::preferences
 #endif // ESP_PLATFORM

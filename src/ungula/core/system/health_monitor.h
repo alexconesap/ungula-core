@@ -39,14 +39,14 @@
 namespace ungula::core::system
 {
 
-    struct HealthSample {
+struct HealthSample {
         uint32_t free_heap; // current free bytes (default heap caps)
         uint32_t min_free_heap; // minimum free ever observed since boot
         int32_t delta; // free_heap - previous_free_heap (0 on first sample)
         uint32_t uptime_ms; // monotonic uptime in milliseconds
-    };
+};
 
-    class HealthMonitor final {
+class HealthMonitor final {
     public:
         HealthMonitor() = default;
 
@@ -67,6 +67,6 @@ namespace ungula::core::system
         uint32_t last_sample_ms_ = 0;
         uint32_t last_free_ = 0;
         bool first_ = true;
-    };
+};
 
 } // namespace ungula::core::system

@@ -19,10 +19,10 @@
 namespace ungula::core::util
 {
 
-    using string_t = std::string;
-    using string_vector_t = std::vector<string_t>;
-    using string_view_t = std::string_view;
-    using vector_string_t = std::vector<string_t>;
-    using vector_string_view_t = std::vector<string_view_t>;
+using string_t = std::string;
+using string_vector_t = std::vector<string_t>;
+using string_view_t = std::string_view;
+using vector_string_t = std::vector<string_t>;
+using vector_string_view_t = std::vector<string_view_t>;
 
 } // namespace ungula::core::util
