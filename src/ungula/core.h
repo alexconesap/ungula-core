@@ -17,7 +17,7 @@
 #include "ungula/core/util/types.h"
 
 // Preferences
-#include "ungula/core/preferences/core/i_preferences.h"
+#include "ungula/core/preferences/preferences.h"
 
 // Time / Delay control
 #include "ungula/core/time/time.h"

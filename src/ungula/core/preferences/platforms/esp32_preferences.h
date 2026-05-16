@@ -6,7 +6,7 @@
 
 #if defined(ESP_PLATFORM)
 
-#include "i_preferences.h"
+#include "ungula/core/preferences/i_preferences.h"
 #include "nvs.h"
 
 namespace ungula::core::preferences

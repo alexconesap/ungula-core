@@ -7,9 +7,41 @@ diagnostics, and a heap health monitor. ESP32 (ESP-IDF) is the fully
 supported target; the portable subset (strings, queue, math, CRC,
 time on host) builds for STM32/host with the bundled host backend.
 
+Preferences layout is split by responsibility:
+
+- `ungula/core/preferences/i_preferences.h` — platform-agnostic interface.
+- `ungula/core/preferences/platforms/*` — platform implementations.
+- `ungula/core/preferences/preferences.h` — single include facade for hosts.
+- `ungula/core/preferences/tools/*` — reusable preference-backed utilities.
+
 The library is header-mostly. One umbrella header pulls in the public
 surface for Arduino discovery; individual headers can also be included
 directly when only part of the surface is needed.
+
+---
+
+## LLM quick map
+
+Use this section first, then jump to the detailed API sections.
+
+- **Most app code**: `#include <ungula/core.h>`.
+- **Portable persistence contract**: `#include <ungula/core/preferences/i_preferences.h>`.
+- **Platform-selected preferences facade**: `#include <ungula/core/preferences/preferences.h>`.
+- **Program/recipe slots utility**: `#include <ungula/core/preferences/tools/programs/program_store.h>`.
+- **Time only**: `#include <ungula/core/time/time.h>`.
+
+### Platform matrix
+
+| Module | ESP32 | Host tests / desktop | Notes |
+| --- | --- | --- | --- |
+| `time/*` | Yes | Yes | Host backend: `std::chrono` + `std::thread` |
+| `preferences/i_preferences.h` | Yes | Yes | Interface-only |
+| `preferences/platforms/esp32_preferences.*` | Yes | No | Only compiled when `ESP_PLATFORM` is defined |
+| `preferences/tools/programs/program_store.h` | Yes | Yes | Requires injected `IPreferences` implementation |
+| `util/*` (`queue`, `crc32`, `string_*`, `types`) | Yes | Yes | Header-only utility layer |
+| `system/health_monitor.*` | Yes | Yes | Host returns heap counters as `0` |
+| `system/system_reboot.*` | Yes | No | Non-ESP build errors at compile time |
+| `system/chip_info.*` | Yes | No | Implementation uses ESP-IDF headers |
 
 ---
 
@@ -86,7 +118,7 @@ falls back to monotonic-since-boot.
 ### Use case: Persisted key-value preferences (ESP32)
 
 ```cpp
-#include <ungula/core/preferences/core/esp32_preferences.h>
+#include <ungula/core/preferences/preferences.h>
 
 ungula::core::preferences::Esp32Preferences prefs;
 
@@ -110,8 +142,10 @@ names are limited to 15 characters by NVS.
 ### Use case: Versioned program/recipe slots with CRC
 
 ```cpp
-#include <ungula/core/preferences/core/esp32_preferences.h>
-#include <ungula/core/preferences/programs/program_store.h>
+#include <ungula/core/preferences/preferences.h>
+#include <ungula/core/preferences/tools/programs/program_store.h>
+
+#include <cstdio>
 
 struct Recipe {
     char  name[32];
@@ -239,9 +273,9 @@ void printBootBanner() {
 | `ungula::core::time` (namespace) | `ungula/core/time/time.h` | Free-function time/delay API |
 | `ungula::core::time::ITimeProvider` | `ungula/core/time/i_time_provider.h` | Pluggable wall-clock source |
 | `ungula::core::time::tz::Timezone` (enum) | `ungula/core/time/timezones.h` | Named UTC offset codes |
-| `ungula::core::preferences::IPreferences` | `ungula/core/preferences/core/i_preferences.h` | Abstract NVS interface |
-| `ungula::core::preferences::Esp32Preferences` | `ungula/core/preferences/core/esp32_preferences.h` | ESP-IDF NVS implementation |
-| `ungula::core::preferences::programs::ProgramStore<T, N>` | `ungula/core/preferences/programs/program_store.h` | CRC-checked recipe slot table |
+| `ungula::core::preferences::IPreferences` | `ungula/core/preferences/i_preferences.h` | Abstract NVS interface |
+| `ungula::core::preferences::Esp32Preferences` | `ungula/core/preferences/platforms/esp32_preferences.h` | ESP-IDF NVS implementation |
+| `ungula::core::preferences::programs::ProgramStore<T, N>` | `ungula/core/preferences/tools/programs/program_store.h` | CRC-checked recipe slot table |
 | `ungula::core::util::Queue<T, Capacity>` | `ungula/core/util/queue.h` | Fixed-capacity circular queue |
 | `ungula::core::system::SystemControl` | `ungula/core/system/system_reboot.h` | Reboot helpers |
 | `ungula::core::system::HealthMonitor` / `HealthSample` | `ungula/core/system/health_monitor.h` | Heap sampler |
@@ -275,7 +309,10 @@ class to instantiate — call them directly, or under a short alias
 - **`void delayUntilMs(tick_ms_t& ref, duration_ms_t period)`**
   Wait until `ref + period`, then advance `ref` by `period`. Drift-free.
   Identical signature in `delayUntilUs`.
-- **`void yield()`** — alias for `delayMs(0)`.
+- **`void yield()`** — cooperative scheduler handoff (not just `delayMs(0)`).
+  On ESP32 it maps to `vTaskDelay(1)` (exactly one RTOS tick — the
+  minimum blocking interval that guarantees IDLE can run and feed the
+  watchdog). On host it maps to `std::this_thread::yield()`.
 - **`epoch_ms_t now() / nowUtc() / nowLocal()`**
   Wall-clock if a provider is installed and valid; otherwise
   monotonic-since-boot. `nowLocal()` adds the configured offset.
@@ -300,7 +337,26 @@ class to instantiate — call them directly, or under a short alias
   Network-coordinator clock alignment. `setSyncTime` stores a single
   offset; reads add it on the hot path.
 
+### `ungula::core::time::ITimeProvider`
+
+- **`int64_t nowMs() const`** — provider-reported current wall-clock in ms.
+- **`bool isValid() const`** — when false, `time::now()` falls back to local monotonic clock.
+
+### `ungula::core::time` formatting helpers (`time_format.h`)
+
+- **`size_t format(char*, size_t, const char* fmt, time_t epochSec, int32_t offsetSec = 0)`**
+  — pure formatter; returns 0 on invalid inputs.
+- **`size_t formatIso8601(char*, size_t, time_t epochSec, int32_t offsetSec = 0)`**
+  — convenience wrapper for `"%Y-%m-%d %H:%M:%S"`.
+
 ### `ungula::core::preferences::IPreferences` / `Esp32Preferences`
+
+Host-facing include: `ungula/core/preferences/preferences.h`.
+
+- `IPreferences` lives at `ungula/core/preferences/i_preferences.h`.
+- `Esp32Preferences` lives at
+  `ungula/core/preferences/platforms/esp32_preferences.h` and is
+  available only when `ESP_PLATFORM` is defined.
 
 - **`bool begin(const char* ns)`** — open NVS namespace (≤ 15 chars).
   Must succeed before any get/put.
@@ -315,7 +371,14 @@ class to instantiate — call them directly, or under a short alias
 compiles only when `ESP_PLATFORM` is defined. Inject `IPreferences&`
 into code that needs to be host-testable.
 
+`Esp32Preferences::hasKey()` probes all key types used by this library
+(`blob`, `str`, `u8`, `u32`) because ESP-IDF v5.1 has no
+type-agnostic "exists" call.
+
 ### `ungula::core::preferences::programs::ProgramStore<ProgramT, MaxPrograms>`
+
+Header path:
+`ungula/core/preferences/tools/programs/program_store.h`.
 
 `ProgramT` must be POD with `char name[N]` and `bool valid` fields.
 
@@ -391,6 +454,9 @@ final XOR `0xFFFFFFFF`.
 - **`static void reboot()`** — immediate hard reset.
 - **`static void rebootAfterMs(uint32_t)`** — sleeps then reboots.
 
+Implementation status: ESP32-only (`esp_restart`). Non-ESP builds that
+compile this translation unit fail by design (`#error "Unsupported platform"`).
+
 ### `ungula::core::system::HealthMonitor`
 
 - **`bool sample(uint32_t intervalMs, HealthSample& out)`** — fills
@@ -405,6 +471,8 @@ final XOR `0xFFFFFFFF`.
 Returns a `ChipInfo` populated by the platform backend. Strings are
 fixed-size in-struct buffers, so the value can be stored or copied
 freely.
+
+Implementation status: ESP32-only at the moment.
 
 ### `ungula::core::time::tz`
 
@@ -467,6 +535,9 @@ No object in this library uses `new`/`delete` after construction.
   `std::this_thread::sleep_for`. Do NOT call from inside an ISR.
 - **tc::delayUs**: busy-wait on ESP32 — does not yield.
   Acceptable up to a few hundred microseconds.
+- **tc::yield**: on ESP32 this is one RTOS tick (`vTaskDelay(1)`),
+  intentionally chosen so IDLE can run and watchdog feeding is not starved.
+  On host it maps to `std::this_thread::yield()`.
 - **Module state in `ungula::core::time::detail::`** (`provider_`,
   `sync_`, `timezoneOffsetSeconds_`): not protected by a mutex.
   Configure once during `setup()` from a single task; readers can be
@@ -489,6 +560,8 @@ No object in this library uses `new`/`delete` after construction.
 - `ungula/core/time/platforms/time_control_esp32.h`,
   `ungula/core/time/platforms/time_control_host.h` — picked automatically by
   `time.h`. Never `#include` directly.
+- `ungula/core/preferences/platforms/*` in generic domain code — inject
+  `IPreferences` instead. Use platform headers only in composition-root code.
 - `ungula::core::time::detail::SyncState` and the inline-static storage
   members (`provider_`, `sync_`, `timezoneOffsetSeconds_`) —
   implementation detail of the namespace; do not reach into them.
@@ -496,7 +569,7 @@ No object in this library uses `new`/`delete` after construction.
   `saveProgramToNvs`, `loadMetaFromNvs`, `saveMetaToNvs`,
   `programKey`, `NVS_NS = "programs"` — internal layout. Do not
   reach into NVS for these keys directly.
-- `ungula/core/preferences/core/esp32_preferences.cpp` — the `nvs_flash` glue.
+- `ungula/core/preferences/platforms/esp32_preferences.cpp` — the `nvs_flash` glue.
   Use the `IPreferences` interface; never include this file from app
   code.
 ---

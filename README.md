@@ -19,7 +19,7 @@ In your Arduino `.ino` file:
 Then include whatever component you need in your code:
 
 ```cpp
-#include "ungula/core/preferences/core/i_preferences.h"
+#include "ungula/core/preferences/preferences.h"
 #include "ungula/core/util/string_utils.h"
 #include "ungula/core/util/queue.h"
 #include "ungula/core/util/crc32.h"
@@ -115,13 +115,26 @@ auto us  = tc::micros();    // monotonic us tick
 ```cpp
 #include <ungula/core.h>
 
-// Stop using 
-tc::delayMs(0); // It works but requires a side commentary
-// Another dev could remove it, or waste time trying to figure out
-// if 'is 0 wrong? Missing a 1 in front to be 10?'
+// Stop using
+// Same time, for the developer reading your code (or yourself some day in the future), can lead to think
+// why 0?
+tc::delayMs(0);
+// BTW It will not really work! The min ticks to wait depend on the platform and to wait 0ms means no wait at all
 
-// You can express better your intent by using
+// You can express better your intent and avoid errors by using
 tc::yield();
+```
+
+When using a `tc::delayMs(0)` you will typically see this error in a ESP32:
+
+```text
+E (xxxxx) task_wdt: Task watchdog got triggered.
+E (xxxxx) task_wdt: The following tasks did not reset the watchdog in time:
+E (xxxxx) task_wdt:  - loopTask (CPU 1)
+E (xxxxx) task_wdt: Tasks currently running:
+E (xxxxx) task_wdt: CPU 0: IDLE0
+E (xxxxx) task_wdt: CPU 1: loopTask
+E (xxxxx) task_wdt: Aborting.
 ```
 
 ### Wall-clock vs monotonic — what each call returns
@@ -446,14 +459,16 @@ input. `clamp01` and `lerp` are also available.
 
 ### Persistent Key-Value Storage
 
-`IPreferences` abstracts NVS (or any other key-value store). One implementation is provided:
+`IPreferences` lives at `ungula/core/preferences/i_preferences.h`, and
+the facade `ungula/core/preferences/preferences.h` is the single include
+for host projects. One implementation is currently provided:
 
-- **`Esp32Preferences`** — uses the ESP-IDF `nvs_flash` API directly. No Arduino dependency.
+- **`Esp32Preferences`** — uses the ESP-IDF `nvs_flash` API directly. No Arduino dependency. Header path: `ungula/core/preferences/platforms/esp32_preferences.h` (auto-included by `preferences.h` on ESP builds).
 
-Other implementations can be created against the same interface, so your application code does not care which one is behind it.
+Other implementations can be created under `ungula/core/preferences/platforms/` against the same interface, so your application code does not care which one is behind it.
 
 ```cpp
-#include <ungula/core/preferences/core/esp32_preferences.h>
+#include <ungula/core/preferences/preferences.h>
 #include <emblogx/logger.h>
 
 ungula::core::preferences::Esp32Preferences prefs;
@@ -512,10 +527,13 @@ bool loadSettings(Settings& out) {
 
 `ProgramStore<ProgramT, MaxSlots>` is a generic NVS-backed recipe/program manager. It stores up to N slots of any POD struct, with CRC integrity checks, active/last-used index tracking, and auto-creation of a default program on first boot.
 
+Path: `ungula/core/preferences/tools/programs/program_store.h`.
+
 Your project defines the struct, the store handles persistence:
 
 ```cpp
-#include <ungula/core/preferences/programs/program_store.h>
+#include <ungula/core/preferences/preferences.h>
+#include <ungula/core/preferences/tools/programs/program_store.h>
 #include <emblogx/logger.h>
 
 // Project-specific recipe struct — any fields you need

@@ -27,6 +27,7 @@ add_compile_definitions(
 
 add_executable(test_ungula_core
     test_crc32.cpp
+    test_preferences_layout.cpp
     test_queue.cpp
     test_string_utils.cpp
     test_types.cpp

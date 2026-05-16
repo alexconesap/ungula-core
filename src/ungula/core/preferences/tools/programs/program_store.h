@@ -21,7 +21,7 @@
 #include <cstdio>
 #include <cstring>
 
-#include <ungula/core/preferences/core/i_preferences.h>
+#include <ungula/core/preferences/i_preferences.h>
 
 namespace ungula::core::preferences::programs
 {

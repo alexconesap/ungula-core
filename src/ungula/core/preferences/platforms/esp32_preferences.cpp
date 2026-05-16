@@ -4,7 +4,7 @@
 
 #if defined(ESP_PLATFORM)
 
-#include "esp32_preferences.h"
+#include "ungula/core/preferences/platforms/esp32_preferences.h"
 
 namespace ungula::core::preferences
 {
