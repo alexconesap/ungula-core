@@ -314,7 +314,7 @@ static ungula::core::system::HealthMonitor health;
 
 void loop() {
     ungula::core::system::HealthSample s;
-    if (health.sample(60'000, s)) {
+    if (health.sample(60000, s)) {
         // emit s.free_heap, s.min_free_heap, s.delta, s.uptime_ms
     }
 }
