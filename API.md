@@ -43,6 +43,76 @@ Use this section first, then jump to the detailed API sections.
 | `system/system_reboot.*` | Yes | No | Non-ESP build errors at compile time |
 | `system/chip_info.*` | Yes | No | Implementation uses ESP-IDF headers |
 
+### LLM subsystem checklists
+
+#### Time (`ungula::core::time`)
+
+- **Do**: include `ungula/core/time/time.h` (or `ungula/core.h`) and call only `millis/micros/delay*/delayUntil*/yield/now*`.
+- **Do**: use `delayUntilMs` for periodic loops; use `yield()` in tight supervisory loops.
+- **Do**: install `ITimeProvider` before treating `now()` as real wall clock.
+- **Don't**: include `time/platforms/*` directly.
+- **Don't**: call `esp_timer_*`, `vTaskDelay`, or Arduino `millis()/delay()` directly from domain code.
+
+#### Preferences (`ungula::core::preferences`)
+
+- **Do**: include `ungula/core/preferences/preferences.h` in composition-root code.
+- **Do**: depend on `IPreferences` in reusable/domain classes.
+- **Do**: pair every `begin(ns)` with `end()`.
+- **Do**: use `ProgramStore` (`tools/programs/program_store.h`) for recipe/profile slots.
+- **Don't**: include `preferences/platforms/*` in portable domain code.
+- **Don't**: read/write the `programs` namespace by hand when using `ProgramStore`.
+- **Don't**: share one `Esp32Preferences` instance across tasks.
+
+#### System (`ungula::core::system`)
+
+- **Do**: treat `HealthMonitor` as portable (ESP + host test stubs).
+- **Do**: gate `SystemControl` and `queryChipInfo()` usage to ESP32 builds.
+- **Don't**: assume reboot/chip-info code compiles on non-ESP targets.
+
+#### Utilities (`ungula::core::util`)
+
+- **Do**: use `Queue<T,N>` for bounded no-heap buffering.
+- **Do**: use `crc32`/`crc32_byte` for wire/storage integrity checks.
+- **Do**: use `string_t`/`string_view_t` and `str::*` helpers for text utilities.
+- **Don't**: reimplement CRC/queue/string helpers already provided here.
+
+### LLM fast callsheet
+
+#### Time
+
+| Goal | Call | Return / behavior |
+| --- | --- | --- |
+| monotonic ms/us | `tc::millis()`, `tc::micros()` | `int64_t` monotonic ticks |
+| blocking wait | `tc::delayMs(ms)`, `tc::delayUs(us)` | `void`; non-positive input is no-op |
+| drift-free periodic loop | `tc::delayUntilMs(ref, period)` / `delayUntilUs` | advances `ref` by period |
+| cooperative handoff | `tc::yield()` | ESP32: one RTOS tick (`vTaskDelay(1)`); host: thread yield |
+| wall clock (provider-aware) | `tc::now()`, `tc::nowUtc()`, `tc::nowLocal()` | falls back to local monotonic clock when provider invalid |
+| zone conversion | `tc::setTimezone(...)`, `tc::nowInTz(offsetSec)` | fixed-offset only (no DST logic) |
+| sync offset clock | `setSyncTime`, `syncNow`, `clearSync` | additive offset model |
+
+#### Preferences
+
+| Goal | Call | Return / behavior |
+| --- | --- | --- |
+| open namespace | `prefs.begin("ns")` | `bool` success |
+| close namespace | `prefs.end()` | `void` |
+| write values | `putString/putBytes/putUInt8/putUInt32` | `bool` success |
+| read values | `getString/getBytes` | bytes read (`0` on missing/error) |
+| typed reads | `getUInt8/getUInt32(key, default)` | default on missing/error |
+| key management | `hasKey/remove/clear` | `bool` |
+
+#### ProgramStore
+
+| Goal | Call | Return / behavior |
+| --- | --- | --- |
+| initialize slots | `store.init(defaultName, createDefault)` | creates slot 0 when none valid |
+| read slot | `store.getProgram(index)` | out-of-range clamps to slot 0 |
+| save slot | `store.saveProgram(index, p)` | forces `valid=true`; persists immediately |
+| delete slot | `store.deleteProgram(index)` | refuses to delete last valid slot |
+| active slot | `getActiveIndex/setActiveIndex` | rejects invalid target slot |
+| metadata | `getLastUsedIndex/setLastUsedIndex` | persisted in same namespace |
+| capacity | `countValid/maxPrograms` | count / compile-time capacity |
+
 ---
 
 ## Usage
@@ -570,8 +640,7 @@ No object in this library uses `new`/`delete` after construction.
   `programKey`, `NVS_NS = "programs"` — internal layout. Do not
   reach into NVS for these keys directly.
 - `ungula/core/preferences/platforms/esp32_preferences.cpp` — the `nvs_flash` glue.
-  Use the `IPreferences` interface; never include this file from app
-  code.
+  Use the `IPreferences` interface; never include this file from app code.
 ---
 
 ## LLM usage rules
