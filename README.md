@@ -4,6 +4,8 @@
 
 > **LLM usage note:** if this library is consumed from a coding AI workflow, explicitly point the agent to `API.md` first. `API.md` is the LLM-facing contract (public API + examples + constraints) and avoids wasting time/tokens scanning source files and this human-oriented README.
 
+> **Warning - Active Development:** This library is under active architecture work to support multiple projects in parallel. Its structure is not finalized yet and may change without notice while this work is in progress. Updates are currently frequent (often daily). Target for structural freeze and stable `v1.0.0`: **June 2026**.
+
 Generic utility library for embedded projects, fully portable. It handles persistent storage, time control/delays, logging, system control, and various utility functions.
 
 When I recently started working on an existing Arduino-based C++ project that used only the ESP32 hardware, I quickly realized how much work it takes to migrate from Arduino libraries to the ESP32 SDK. To do this gradually, I began implementing this library, which allows me to easily port projects that still rely on certain Arduino libraries (for example, to control specific motor drivers or sensors) while accessing ESP32 libraries natively to improve overall performance.
@@ -12,23 +14,24 @@ Ultimately, my goal is to port 100% of the code from one hardware platform for e
 
 ## Table of Contents
 
+- [C++ Compatibility](#c-compatibility)
 - [Quick Start](#quick-start)
 - [Time Control (`ungula/core/time/`)](#time-control-ungulacoretime)
   - [Calling style](#calling-style)
   - [Periodic Loop Without Drift](#periodic-loop-without-drift)
   - [Simple Delays and cross-platform time functions](#simple-delays-and-cross-platform-time-functions)
   - [Useful helpers](#useful-helpers)
-  - [Wall-clock vs monotonic - what each call returns](#wall-clock-vs-monotonic---what-each-call-returns)
-  - [Pluggable time source (`ungula/core/time/i_time_provider.h`)](#pluggable-time-source-ungulacoretimei_time_providerh)
-  - [Formatting (`ungula/core/time/time_format.h`)](#formatting-ungulacoretimetime_formath)
+  - [Wall-clock vs monotonic — what each call returns](#wall-clock-vs-monotonic-what-each-call-returns)
+  - [Pluggable time source (`ungula/core/time/i_time_provider.h`)](#pluggable-time-source-ungulacoretimeitimeproviderh)
+  - [Formatting (`ungula/core/time/time_format.h`)](#formatting-ungulacoretimetimeformath)
 - [System Control (`ungula/core/system/`)](#system-control-ungulacoresystem)
-  - [Chip Info (`ungula/core/system/chip_info.h`)](#chip-info-ungulacoresystemchip_infoh)
+  - [Chip Info (`ungula/core/system/chip_info.h`)](#chip-info-ungulacoresystemchipinfoh)
 - [Utilities](#utilities)
   - [CRC32 (`ungula/core/util/crc32.h`)](#crc32-ungulacoreutilcrc32h)
   - [Queue (`ungula/core/util/queue.h`)](#queue-ungulacoreutilqueueh)
-  - [String Utilities (`ungula/core/util/string_utils.h`)](#string-utilities-ungulacoreutilstring_utilsh)
-  - [String types (`ungula/core/util/string_types.h`)](#string-types-ungulacoreutilstring_typesh)
-  - [Temperature & Math (`ungula/core/util/types.h`)](#temperature--math-ungulacoreutiltypesh)
+  - [String Utilities (`ungula/core/util/string_utils.h`)](#string-utilities-ungulacoreutilstringutilsh)
+  - [String types (`ungula/core/util/string_types.h`)](#string-types-ungulacoreutilstringtypesh)
+  - [Temperature & Math (`ungula/core/util/types.h`)](#temperature-and-math-ungulacoreutiltypesh)
 - [Preferences (`ungula/core/preferences/`)](#preferences-ungulacorepreferences)
   - [Persistent Key-Value Storage](#persistent-key-value-storage)
   - [Program Store (Recipe Manager)](#program-store-recipe-manager)
@@ -36,6 +39,12 @@ Ultimately, my goal is to port 100% of the code from one hardware platform for e
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
 - [Arduino CLI symlink note (rarely relevant)](#arduino-cli-symlink-note-rarely-relevant)
+
+## C++ Compatibility
+
+- **Own source minimum**: `C++17`.
+- **Effective minimum for consumers**: `C++17`.
+- **Dependency impact**: None (no declared internal dependencies).
 
 ## Quick Start
 

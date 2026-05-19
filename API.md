@@ -21,6 +21,9 @@ directly when only part of the surface is needed.
 ---
 
 ## LLM quick map
+- **Own source minimum**: `C++17`.
+- **Effective minimum for consumers**: `C++17`.
+- **Dependency impact**: None (no declared internal dependencies).
 
 Use this section first, then jump to the detailed API sections.
 
