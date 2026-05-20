@@ -499,9 +499,20 @@ input. `clamp01` and `lerp` are also available.
 
 `IPreferences` lives at `ungula/core/preferences/i_preferences.h`, and
 the facade `ungula/core/preferences/preferences.h` is the single include
-for host projects. One implementation is currently provided:
+for host projects. The facade also exposes a `Preferences` alias that
+resolves to the platform's concrete implementation at compile time —
+**use that alias from app code** so a future platform swap requires
+zero source changes.
 
-- **`Esp32Preferences`** — uses the ESP-IDF `nvs_flash` API directly. No Arduino dependency. Header path: `ungula/core/preferences/platforms/esp32_preferences.h` (auto-included by `preferences.h` on ESP builds).
+One implementation is currently provided:
+
+- **`Esp32Preferences`** — uses the ESP-IDF `nvs_flash` API directly. No Arduino dependency. Header path: `ungula/core/preferences/platforms/esp32_preferences.h` (auto-included by `preferences.h` on ESP builds, where `Preferences` aliases to it).
+
+The facade currently resolves as follows:
+
+- `ESP_PLATFORM`, `ARDUINO_ARCH_ESP32`, or `ESP32` -> `Preferences = Esp32Preferences`
+- `STM32` or `ARDUINO_ARCH_STM32` -> explicit compile-time error (backend not implemented yet)
+- anything else -> explicit compile-time error (`no implementation selected`)
 
 Other implementations can be created under `ungula/core/preferences/platforms/` against the same interface, so your application code does not care which one is behind it.
 
@@ -509,8 +520,9 @@ Other implementations can be created under `ungula/core/preferences/platforms/` 
 #include <ungula/core/preferences/preferences.h>
 #include <emblogx/logger.h>
 
-ungula::core::preferences::Esp32Preferences prefs;
-// or: any other implementation you can create
+ungula::core::preferences::Preferences prefs;
+// resolves to Esp32Preferences on ESP-IDF; future platforms plug in
+// here without touching this line.
 
 void saveDeviceConfig(const char* name, uint32_t bootCount) {
     prefs.begin("my_app");

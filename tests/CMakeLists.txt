@@ -36,6 +36,21 @@ add_executable(test_ungula_core
 )
 target_link_libraries(test_ungula_core gtest_main)
 
+add_library(check_preferences_alias_esp_platform OBJECT
+    check_preferences_alias_dispatch.cpp
+)
+target_compile_definitions(check_preferences_alias_esp_platform PRIVATE ESP_PLATFORM=1)
+
+add_library(check_preferences_alias_arduino_esp32 OBJECT
+    check_preferences_alias_dispatch.cpp
+)
+target_compile_definitions(check_preferences_alias_arduino_esp32 PRIVATE ARDUINO_ARCH_ESP32=1)
+
+add_library(check_preferences_alias_esp32_symbol OBJECT
+    check_preferences_alias_dispatch.cpp
+)
+target_compile_definitions(check_preferences_alias_esp32_symbol PRIVATE ESP32=1)
+
 enable_testing()
 include(GoogleTest)
 gtest_discover_tests(test_ungula_core)

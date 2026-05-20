@@ -39,7 +39,7 @@ Use this section first, then jump to the detailed API sections.
 | --- | --- | --- | --- |
 | `time/*` | Yes | Yes | Host backend: `std::chrono` + `std::thread` |
 | `preferences/i_preferences.h` | Yes | Yes | Interface-only |
-| `preferences/platforms/esp32_preferences.*` | Yes | No | Only compiled when `ESP_PLATFORM` is defined |
+| `preferences/platforms/esp32_preferences.*` | Yes | No | Compiled when `ESP_PLATFORM`, `ARDUINO_ARCH_ESP32`, or `ESP32` is defined; aliased as `Preferences` via `preferences.h` |
 | `preferences/tools/programs/program_store.h` | Yes | Yes | Requires injected `IPreferences` implementation |
 | `util/*` (`queue`, `crc32`, `string_*`, `types`) | Yes | Yes | Header-only utility layer |
 | `system/health_monitor.*` | Yes | Yes | Host returns heap counters as `0` |
@@ -64,7 +64,8 @@ Use this section first, then jump to the detailed API sections.
 - **Do**: use `ProgramStore` (`tools/programs/program_store.h`) for recipe/profile slots.
 - **Don't**: include `preferences/platforms/*` in portable domain code.
 - **Don't**: read/write the `programs` namespace by hand when using `ProgramStore`.
-- **Don't**: share one `Esp32Preferences` instance across tasks.
+- **Don't**: share one `Preferences` instance across tasks.
+- **Don't**: spell the platform class name (`Esp32Preferences`) in application code — use the `Preferences` alias so the code stays portable.
 
 #### System (`ungula::core::system`)
 
@@ -193,7 +194,7 @@ falls back to monotonic-since-boot.
 ```cpp
 #include <ungula/core/preferences/preferences.h>
 
-ungula::core::preferences::Esp32Preferences prefs;
+ungula::core::preferences::Preferences prefs;
 
 void saveSsid(const char* ssid) {
     if (!prefs.begin("wifi")) return;
@@ -236,7 +237,7 @@ static Recipe defaultRecipe(const char* name) {
     return r;
 }
 
-ungula::core::preferences::Esp32Preferences           prefs;
+ungula::core::preferences::Preferences           prefs;
 ungula::core::preferences::programs::ProgramStore<Recipe, 10>   store(prefs);
 
 void setup() {
@@ -347,7 +348,8 @@ void printBootBanner() {
 | `ungula::core::time::ITimeProvider` | `ungula/core/time/i_time_provider.h` | Pluggable wall-clock source |
 | `ungula::core::time::tz::Timezone` (enum) | `ungula/core/time/timezones.h` | Named UTC offset codes |
 | `ungula::core::preferences::IPreferences` | `ungula/core/preferences/i_preferences.h` | Abstract NVS interface |
-| `ungula::core::preferences::Esp32Preferences` | `ungula/core/preferences/platforms/esp32_preferences.h` | ESP-IDF NVS implementation |
+| `ungula::core::preferences::Preferences` | `ungula/core/preferences/preferences.h` | Platform-selected alias (concrete impl picked at compile time) |
+| `ungula::core::preferences::Esp32Preferences` | `ungula/core/preferences/platforms/esp32_preferences.h` | ESP-IDF NVS implementation (internal — use the `Preferences` alias from app code) |
 | `ungula::core::preferences::programs::ProgramStore<T, N>` | `ungula/core/preferences/tools/programs/program_store.h` | CRC-checked recipe slot table |
 | `ungula::core::util::Queue<T, Capacity>` | `ungula/core/util/queue.h` | Fixed-capacity circular queue |
 | `ungula::core::system::SystemControl` | `ungula/core/system/system_reboot.h` | Reboot helpers |
@@ -422,14 +424,21 @@ class to instantiate — call them directly, or under a short alias
 - **`size_t formatIso8601(char*, size_t, time_t epochSec, int32_t offsetSec = 0)`**
   — convenience wrapper for `"%Y-%m-%d %H:%M:%S"`.
 
-### `ungula::core::preferences::IPreferences` / `Esp32Preferences`
+### `ungula::core::preferences::IPreferences` / `Preferences`
 
 Host-facing include: `ungula/core/preferences/preferences.h`.
 
 - `IPreferences` lives at `ungula/core/preferences/i_preferences.h`.
+- `Preferences` is a compile-time alias defined in
+  `ungula/core/preferences/preferences.h`. It resolves to the platform's
+  concrete implementation (`Esp32Preferences` on ESP-IDF). App code
+  should always spell the type as `Preferences` so that switching
+  platforms requires no source changes.
 - `Esp32Preferences` lives at
   `ungula/core/preferences/platforms/esp32_preferences.h` and is
-  available only when `ESP_PLATFORM` is defined.
+  compiled only on ESP32 macro branches (`ESP_PLATFORM`,
+  `ARDUINO_ARCH_ESP32`, `ESP32`). Don't reference it by name from
+  app code — go through the `Preferences` alias.
 
 - **`bool begin(const char* ns)`** — open NVS namespace (≤ 15 chars).
   Must succeed before any get/put.
@@ -441,7 +450,9 @@ Host-facing include: `ungula/core/preferences/preferences.h`.
 - **`bool remove(key)`**, **`bool clear()`**, **`bool hasKey(key)`**.
 
 `Esp32Preferences` is the only concrete shipped implementation; it
-compiles only when `ESP_PLATFORM` is defined. Inject `IPreferences&`
+compiles only on ESP32 macro branches and is reached through the
+`Preferences` alias. STM32 branches are currently explicit
+compile-time errors until a backend is added. Inject `IPreferences&`
 into code that needs to be host-testable.
 
 `Esp32Preferences::hasKey()` probes all key types used by this library
@@ -565,9 +576,10 @@ Implementation status: ESP32-only at the moment.
   a provider with `setTimeProvider` and ensure `isValid()` returns
   `true` before the first call. `setTimezone` is a one-shot
   configuration.
-- **Esp32Preferences** — every read/write must be sandwiched in
-  `begin(ns)` … `end()`. NVS init (`nvs_flash_init`) must happen
-  before the first `begin`. Forgetting `end()` leaks an NVS handle.
+- **Preferences** — every read/write must be sandwiched in
+  `begin(ns)` … `end()`. On ESP32 (`Esp32Preferences`), NVS init
+  (`nvs_flash_init`) must happen before the first `begin`. Forgetting
+  `end()` leaks an NVS handle.
 - **ProgramStore** — call `init()` exactly once in `setup()`. Must run
   after the underlying `IPreferences` is usable. `saveProgram` and
   `deleteProgram` persist immediately; metadata (`activeIndex`,
@@ -618,9 +630,9 @@ No object in this library uses `new`/`delete` after construction.
 - **Queue**: not thread-safe. One producer + one consumer is fine
   only if you accept the standard SPSC caveats; for ISR↔task use a
   FreeRTOS queue or wrap with `portENTER_CRITICAL`.
-- **NVS access** is mutex-protected by ESP-IDF, but `Esp32Preferences`
+- **NVS access** is mutex-protected by ESP-IDF, but `Preferences`
   is single-instance-per-namespace by design — do not share one
-  `Esp32Preferences` object across tasks.
+  `Preferences` object across tasks.
 - **CRC32** functions are pure and reentrant.
 - **HealthMonitor::sample** reads
   `esp_get_free_heap_size`/`esp_get_minimum_free_heap_size` on ESP32 —
@@ -655,7 +667,8 @@ No object in this library uses `new`/`delete` after construction.
 - Use `delayUntilMs` for periodic loops; `delayMs` only for fire-and-
   forget waits.
 - Treat `IPreferences` as the only persistence interface; depend on the
-  abstract type, not on `Esp32Preferences`. Single-namespace per object.
+  abstract type, not on the platform alias `Preferences` or the
+  concrete `Esp32Preferences`. Single-namespace per object.
 - For recipe-style state, prefer `ProgramStore` over hand-rolled NVS
   serialization — CRC and slot management are non-trivial to redo.
 - Use `Queue<T, N>` instead of `std::deque` / dynamic ring buffers for

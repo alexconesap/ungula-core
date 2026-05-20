@@ -2,7 +2,7 @@
 // Copyright (c) 2024-2026 Alex Conesa
 // See LICENSE file for details.
 
-#if defined(ESP_PLATFORM)
+#if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
 
 #include "ungula/core/preferences/platforms/esp32_preferences.h"
 
@@ -200,4 +200,4 @@ bool Esp32Preferences::hasKey(const char *key) const
 }
 
 } // namespace ungula::core::preferences
-#endif // ESP_PLATFORM
+#endif // ESP_PLATFORM || ARDUINO_ARCH_ESP32 || ESP32

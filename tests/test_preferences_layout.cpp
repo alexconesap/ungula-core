@@ -8,7 +8,7 @@
 #include <cstring>
 #include <type_traits>
 
-#include <ungula/core/preferences/preferences.h>
+#include <ungula/core/preferences/i_preferences.h>
 #include <ungula/core/preferences/tools/programs/program_store.h>
 
 namespace
@@ -216,7 +216,7 @@ TEST(PreferencesLayout, ProgramStoreCompilesAtNewToolsPath)
         EXPECT_EQ(store.getProgram(0).speed, 250);
 }
 
-TEST(PreferencesLayout, FacadeAlwaysExposesIPreferences)
+TEST(PreferencesLayout, InterfaceRemainsAbstract)
 {
         static_assert(std::is_abstract<IPreferences>::value,
                       "IPreferences must remain an abstract interface");

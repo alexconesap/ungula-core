@@ -4,7 +4,7 @@
 
 #pragma once
 
-#if defined(ESP_PLATFORM)
+#if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
 
 #include "ungula/core/preferences/i_preferences.h"
 #include "nvs.h"
@@ -13,7 +13,7 @@ namespace ungula::core::preferences
 {
 
 /// Pure ESP-IDF NVS implementation of IPreferences.
-/// Uses nvs_flash API directly — no Arduino dependency.
+/// Uses nvs_flash API directly - no Arduino dependency.
 class Esp32Preferences : public IPreferences {
     public:
         Esp32Preferences();
@@ -39,4 +39,4 @@ class Esp32Preferences : public IPreferences {
 };
 
 } // namespace ungula::core::preferences
-#endif // ESP_PLATFORM
+#endif // ESP_PLATFORM || ARDUINO_ARCH_ESP32 || ESP32
