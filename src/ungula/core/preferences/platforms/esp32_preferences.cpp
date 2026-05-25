@@ -5,9 +5,24 @@
 #if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
 
 #include "ungula/core/preferences/platforms/esp32_preferences.h"
+#include "ungula/core/preferences/preferences.h"  // declares initStorage()
+
+#include "nvs_flash.h"
 
 namespace ungula::core::preferences
 {
+
+bool initStorage()
+{
+        esp_err_t err = nvs_flash_init();
+        if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+                // Partition format mismatch (fresh chip or IDF version bump).
+                // Wipe and retry once.
+                (void)nvs_flash_erase();
+                err = nvs_flash_init();
+        }
+        return err == ESP_OK;
+}
 
 Esp32Preferences::Esp32Preferences()
         : handle_(0)

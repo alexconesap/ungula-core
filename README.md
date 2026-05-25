@@ -516,6 +516,44 @@ The facade currently resolves as follows:
 
 Other implementations can be created under `ungula/core/preferences/platforms/` against the same interface, so your application code does not care which one is behind it.
 
+### Mandatory storage init: `initStorage()`
+
+```cpp
+namespace ungula::core::preferences {
+    bool initStorage();
+}
+```
+
+Call `initStorage()` exactly once at boot, **before** any other subsystem
+that touches non-volatile storage — `Preferences`, `WiFi`, `ESP-NOW`,
+`BLE`, and anything else that backs onto NVS. The function is
+platform-agnostic at the call site; each backend supplies its own
+implementation under `platforms/*.cpp`. On ESP32 it wraps
+`nvs_flash_init()` and transparently erases-and-retries when the
+on-flash format is stale (fresh chip, IDF version bump).
+
+Call this function prior to `wifi`, `espnow`, `ble`, or any
+`Preferences::begin()`; otherwise those calls fail with
+`ESP_ERR_NVS_NOT_INITIALIZED` and the chip enters a reboot loop. Pure
+ESP-IDF projects must invoke it from `app_main`-side setup. The host
+build (gtest) provides a no-op default so the same source compiles and
+links unmodified for unit tests.
+
+```cpp
+#include <ungula/core/preferences/preferences.h>
+
+extern "C" void app_main()
+{
+    if (!ungula::core::preferences::initStorage()) {
+        // storage backend refused to initialise even after the retry.
+        abort();
+    }
+    // wifi::espnow_init(); transport.init(); Preferences::begin(...); etc.
+}
+```
+
+### Per-instance API
+
 ```cpp
 #include <ungula/core/preferences/preferences.h>
 #include <emblogx/logger.h>

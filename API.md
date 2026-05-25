@@ -39,7 +39,9 @@ Use this section first, then jump to the detailed API sections.
 | --- | --- | --- | --- |
 | `time/*` | Yes | Yes | Host backend: `std::chrono` + `std::thread` |
 | `preferences/i_preferences.h` | Yes | Yes | Interface-only |
-| `preferences/platforms/esp32_preferences.*` | Yes | No | Compiled when `ESP_PLATFORM`, `ARDUINO_ARCH_ESP32`, or `ESP32` is defined; aliased as `Preferences` via `preferences.h` |
+| `preferences/preferences.h` (`initStorage()`) | Yes | Yes | Declaration in facade; implementation picked at link time |
+| `preferences/platforms/esp32_preferences.*` | Yes | No | Compiled when `ESP_PLATFORM`, `ARDUINO_ARCH_ESP32`, or `ESP32` is defined; aliased as `Preferences` via `preferences.h`. Provides ESP32 `initStorage()` (wraps `nvs_flash_init`) |
+| `preferences/platforms/host_preferences.cpp` | No | Yes | No-op `initStorage()` for host tests / non-MCU builds |
 | `preferences/tools/programs/program_store.h` | Yes | Yes | Requires injected `IPreferences` implementation |
 | `util/*` (`queue`, `crc32`, `string_*`, `types`) | Yes | Yes | Header-only utility layer |
 | `system/health_monitor.*` | Yes | Yes | Host returns heap counters as `0` |
@@ -58,6 +60,7 @@ Use this section first, then jump to the detailed API sections.
 
 #### Preferences (`ungula::core::preferences`)
 
+- **Do**: call `initStorage()` exactly once at boot, **before** `Preferences::begin()`, `wifi`, `espnow`, `ble`, or any other subsystem that touches non-volatile storage. Skipping it produces `ESP_ERR_NVS_NOT_INITIALIZED` on ESP-IDF and a reboot loop.
 - **Do**: include `ungula/core/preferences/preferences.h` in composition-root code.
 - **Do**: depend on `IPreferences` in reusable/domain classes.
 - **Do**: pair every `begin(ns)` with `end()`.
@@ -66,6 +69,28 @@ Use this section first, then jump to the detailed API sections.
 - **Don't**: read/write the `programs` namespace by hand when using `ProgramStore`.
 - **Don't**: share one `Preferences` instance across tasks.
 - **Don't**: spell the platform class name (`Esp32Preferences`) in application code — use the `Preferences` alias so the code stays portable.
+
+##### `bool initStorage()` (free function, namespace `ungula::core::preferences`)
+
+```cpp
+#include <ungula/core/preferences/preferences.h>
+
+extern "C" void app_main()
+{
+    if (!ungula::core::preferences::initStorage()) {
+        abort();    // storage backend refused even after erase-and-retry
+    }
+    // wifi::espnow_init(); transport.init(); Preferences::begin(...); ...
+}
+```
+
+Backend-agnostic free function. ESP32 backend wraps `nvs_flash_init()` and
+handles `ESP_ERR_NVS_NO_FREE_PAGES` / `ESP_ERR_NVS_NEW_VERSION_FOUND` by
+erasing the partition and retrying once. Host backend is a no-op returning
+`true` so the same source compiles and links for unit tests.
+
+Call this function prior to `wifi`, `espnow`, `ble`, or any
+`Preferences::begin()`.
 
 #### System (`ungula::core::system`)
 

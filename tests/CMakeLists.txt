@@ -33,6 +33,11 @@ add_executable(test_ungula_core
     test_types.cpp
     test_time_control.cpp
     test_time_format.cpp
+    # Host backend for ungula::core::preferences::initStorage() — no-op
+    # returning true, gated to non-MCU builds inside the .cpp so the file
+    # is silent on ESP32. Without this the test_preferences_layout link
+    # would fail to find initStorage on host.
+    ${LIB_SRC}/ungula/core/preferences/platforms/host_preferences.cpp
 )
 target_link_libraries(test_ungula_core gtest_main)
 

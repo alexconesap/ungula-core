@@ -9,12 +9,14 @@
 #include <type_traits>
 
 #include <ungula/core/preferences/i_preferences.h>
+#include <ungula/core/preferences/preferences.h>
 #include <ungula/core/preferences/tools/programs/program_store.h>
 
 namespace
 {
 
 using ungula::core::preferences::IPreferences;
+using ungula::core::preferences::initStorage;
 using ungula::core::preferences::programs::ProgramStore;
 
 struct DemoProgram {
@@ -221,6 +223,15 @@ TEST(PreferencesLayout, InterfaceRemainsAbstract)
         static_assert(std::is_abstract<IPreferences>::value,
                       "IPreferences must remain an abstract interface");
         SUCCEED();
+}
+
+TEST(PreferencesLayout, InitStorageSucceedsOnHost)
+{
+        // Host backend (platforms/host_preferences.cpp) is a no-op returning
+        // true. Calling twice must remain idempotent so composition-root
+        // code does not have to guard the call.
+        EXPECT_TRUE(initStorage());
+        EXPECT_TRUE(initStorage());
 }
 
 } // namespace

@@ -12,6 +12,10 @@
 namespace ungula::core::preferences
 {
 
+// Note: the platform-agnostic `initStorage()` free function is declared
+// in `ungula/core/preferences/preferences.h`. The ESP-IDF implementation
+// lives in this platform's .cpp.
+
 /// Pure ESP-IDF NVS implementation of IPreferences.
 /// Uses nvs_flash API directly - no Arduino dependency.
 class Esp32Preferences : public IPreferences {
