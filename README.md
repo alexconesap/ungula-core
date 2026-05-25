@@ -195,13 +195,15 @@ The aliases (`tick_ms_t`, `tick_us_t`, `duration_ms_t`, `duration_us_t`, `epoch_
 1. **No wrap.** `uint32_t` ms wraps every 49 days; `uint32_t` µs every 71 minutes. Devices that run continuously hit both. `int64_t` ms gives ~292 million years of headroom — effectively never.
 2. **No silent truncation.** ESP-IDF's `esp_timer_get_time()` already returns `int64_t`. The previous `uint32_t` `micros()` was *wrong* past 71 minutes — values were truncated to the low 32 bits. Now the call is straight pass-through.
 3. **Signed math just works for deadlines.**
-   ```cpp
+
+```cpp
 #include <ungula/core.h>
 
    const auto remaining = deadline - tc::millis();
    if (remaining <= 0) handleOverdue();   // intuitive
-   ```
-   With unsigned, an overdue value becomes a huge positive number and the code "waits" for ~49 days. Signed types eliminate that whole class of bug.
+```
+
+With unsigned, an overdue value becomes a huge positive number and the code "waits" for ~49 days. Signed types eliminate that whole class of bug.
 
 The three aliases exist to make intent visible — same width, different meanings:
 
@@ -524,7 +526,7 @@ namespace ungula::core::preferences {
 }
 ```
 
-Call `initStorage()` exactly once at boot, **before** any other subsystem
+For ESP32 call `initStorage()` exactly once at boot, **before** any other subsystem
 that touches non-volatile storage — `Preferences`, `WiFi`, `ESP-NOW`,
 `BLE`, and anything else that backs onto NVS. The function is
 platform-agnostic at the call site; each backend supplies its own
