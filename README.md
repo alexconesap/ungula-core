@@ -26,6 +26,8 @@ Ultimately, my goal is to port 100% of the code from one hardware platform for e
   - [Formatting (`ungula/core/time/time_format.h`)](#formatting-ungulacoretimetimeformath)
 - [System Control (`ungula/core/system/`)](#system-control-ungulacoresystem)
   - [Chip Info (`ungula/core/system/chip_info.h`)](#chip-info-ungulacoresystemchipinfoh)
+- [Control (`ungula/core/control/`)](#control-ungulacorecontrol)
+  - [PID Controller (`ungula/core/control/pid.h`)](#pid-controller-ungulacorecontrolpidh)
 - [Utilities](#utilities)
   - [CRC32 (`ungula/core/util/crc32.h`)](#crc32-ungulacoreutilcrc32h)
   - [Queue (`ungula/core/util/queue.h`)](#queue-ungulacoreutilqueueh)
@@ -418,6 +420,32 @@ void setup() {
 
 Fields: `model`, `sdkVersion`, `features` (human-readable string), `cores`, `revision`, `hasWifi`, `hasBluetooth`, `hasBle`, `hasPsram`.
 
+## Control (`ungula/core/control/`)
+
+### PID Controller (`ungula/core/control/pid.h`)
+
+Generic single-loop PID controller. Output is unclamped — callers apply their own `[min, max]` clamp after adding their base speed or bias. The integral has its own anti-windup clamp (`i_max`) so a saturated output doesn't poison future ticks.
+
+```cpp
+#include <ungula/core/control/pid.h>
+
+ungula::core::control::PidConfig cfg = { .kp = 1.0f, .ki = 0.1f, .kd = 0.05f, .i_max = 50.0f };
+ungula::core::control::Pid pid(cfg);
+
+void loop() {
+    float error = setpoint - measurement;
+    float output = pid.update(error, dt_s);  // dt_s must be > 0
+
+    // Clamp output to safe range, then add base bias:
+    float clamped = std::clamp(output + baseSpeed, minSpeed, maxSpeed);
+    motor.setSpeed(clamped);
+}
+```
+
+`reset()` clears integral and derivative history. Call it after a setpoint jump, when the loop has been disabled, or after a hard-stop (limit switch, motor disabled) — any case where the carried error state is no longer meaningful.
+
+The derivative term stays at 0 on the first `update()` call (the `primed_` flag) so the first step doesn't produce a spurious spike.
+
 ## Utilities
 
 ### CRC32 (`ungula/core/util/crc32.h`)
@@ -679,6 +707,7 @@ cd lib/tests
 | `Queue` | Push/pop, overflow, underflow, clear |
 | `StringUtils` | Trim, case, split, escape |
 | `Types` | Temperature conversion, math clamp/lerp |
+| `PID` | Proportional, integral, derivative, anti-windup, reset |
 
 ## Acknowledgements
 

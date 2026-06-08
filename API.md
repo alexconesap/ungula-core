@@ -47,6 +47,7 @@ Use this section first, then jump to the detailed API sections.
 | `system/health_monitor.*` | Yes | Yes | Host returns heap counters as `0` |
 | `system/system_reboot.*` | Yes | No | Non-ESP build errors at compile time |
 | `system/chip_info.*` | Yes | No | Implementation uses ESP-IDF headers |
+| `control/pid.h` | Yes | Yes | Header-only PID controller |
 
 ### LLM subsystem checklists
 
@@ -104,6 +105,13 @@ Call this function prior to `wifi`, `espnow`, `ble`, or any
 - **Do**: use `crc32`/`crc32_byte` for wire/storage integrity checks.
 - **Do**: use `string_t`/`string_view_t` and `str::*` helpers for text utilities.
 - **Don't**: reimplement CRC/queue/string helpers already provided here.
+
+#### Control (`ungula::core::control`)
+
+- **Do**: apply your own `[min, max]` clamp on the PID output before adding base bias/speed.
+- **Do**: call `reset()` after setpoint jumps, loop disable, or hard-stop events.
+- **Do**: ensure `dt_s > 0` on every `update()` call — zero or negative dt produces undefined derivative.
+- **Don't**: assume the output is bounded — anti-windup clamps the integral accumulator, not the final output.
 
 ### LLM fast callsheet
 
@@ -352,6 +360,33 @@ void loop() {
 When to use this: long-running firmware. A monotonically falling
 `free_heap` is the only early signal of an allocator leak.
 
+### Use case: Single-loop PID control
+
+```cpp
+#include <ungula/core/control/pid.h>
+
+ungula::core::control::PidConfig cfg = { .kp = 1.2f, .ki = 0.05f, .kd = 0.3f, .i_max = 40.0f };
+ungula::core::control::Pid motorPid(cfg);
+
+void setTarget(float rpm) {
+    targetRpm = rpm;
+    motorPid.reset();  // clear history on setpoint change
+}
+
+void controlLoop(float dt_s) {
+    float error = targetRpm - currentRpm;
+    float output = motorPid.update(error, dt_s);
+
+    float drive = std::clamp(output + baseDrive, minDrive, maxDrive);
+    motor.setDrive(drive);
+}
+```
+
+When to use this: motor speed, temperature, or any continuous variable
+that needs a feedback loop. The integral accumulator is
+anti-windup-clamped internally so a saturated output does not
+accumulate error indefinitely.
+
 ### Use case: Identify the MCU at boot
 
 ```cpp
@@ -381,6 +416,8 @@ void printBootBanner() {
 | `ungula::core::system::HealthMonitor` / `HealthSample` | `ungula/core/system/health_monitor.h` | Heap sampler |
 | `ungula::core::system::ChipInfo` | `ungula/core/system/chip_info.h` | MCU identity struct |
 | `ungula::core::util::string_t`, `string_view_t`, `vector_string_t` | `ungula/core/util/string_types.h` | std-aliases used across all libraries |
+| `ungula::core::control::PidConfig` | `ungula/core/control/pid.h` | PID gains and anti-windup limit |
+| `ungula::core::control::Pid` | `ungula/core/control/pid.h` | Single-loop PID controller |
 
 Time aliases at namespace scope (`ungula::core::time::tick_ms_t`,
 `tick_us_t`, `duration_ms_t`, `duration_us_t`, `epoch_ms_t`) — all
@@ -592,6 +629,22 @@ Implementation status: ESP32-only at the moment.
   from UTC. No DST awareness. Enum values are stable across versions
   (entries can be added at the end only).
 
+### `ungula::core::control::Pid`
+
+Header: `ungula/core/control/pid.h`.
+
+`PidConfig` struct: `kp` (proportional gain), `ki` (integral gain), `kd` (derivative gain), `i_max` (anti-windup clamp on `|integral|`).
+
+- **`explicit Pid(const PidConfig&)`** — constructor stores the config reference.
+- **`float update(float error, float dt_s)`**
+  Runs one iteration. `dt_s` must be `> 0`. Returns `kp·e + ki·∫e + kd·de/dt` (unclamped). First call produces `deriv = 0` (the `primed_` flag is set afterward).
+- **`void reset()`** — clears `integral_`, `prev_error_`, and `primed_` flag. Call after setpoint jumps, loop disable, or hard-stop events.
+- **`float integral() const`** — current integral accumulator value (for logging or tuning).
+
+Anti-windup: `integral_` is clamped to `[-i_max, +i_max]` before the derivative is computed, so a saturated output does not poison future ticks.
+
+Output is intentionally unclamped — callers apply `[min, max]` after adding base speed/bias.
+
 ---
 
 ## Lifecycle
@@ -612,6 +665,8 @@ Implementation status: ESP32-only at the moment.
 - **HealthMonitor** — single instance per project, sampled from
   `loop()`. No init required.
 - **Queue** — value-initialized; no init required.
+- **Pid** — value-initialized; no init required. Call `reset()` after
+  setpoint changes or loop disable.
 
 No object in this library uses `new`/`delete` after construction.
 
@@ -632,6 +687,8 @@ No object in this library uses `new`/`delete` after construction.
 - `tc::format*` — return `0` when no valid time provider is
   installed (caller must check before treating the buffer as printable).
 - `tz::offsetSeconds` — undefined enum values return `0` (UTC).
+- `Pid::update(error, dt_s)` — `dt_s <= 0` produces undefined derivative
+  (caller is responsible for ensuring `dt_s > 0`).
 
 ---
 
