@@ -37,6 +37,7 @@ Ultimately, my goal is to port 100% of the code from one hardware platform for e
 - [Preferences (`ungula/core/preferences/`)](#preferences-ungulacorepreferences)
   - [Persistent Key-Value Storage](#persistent-key-value-storage)
   - [Program Store (Recipe Manager)](#program-store-recipe-manager)
+  - [Config Store (Single Config)](#config-store-single-config)
 - [Testing](#testing)
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
@@ -693,6 +694,48 @@ void switchRecipe(int slot) {
 
 Each slot is stored as `[struct bytes][CRC32]`. On load, CRC is verified — corrupted slots are silently skipped. The store guarantees at least one valid program exists at all times (won't delete the last one).
 
+### Config Store (Single Config)
+
+`NvsConfigStore<ConfigT>` stores one CRC-protected config struct in NVS under a single key.
+As an example, the `ProgramStore` is used when managing an array of 'program settings' while `NvsConfigStore<ConfigT>` is used when you have one configuration structure only.
+
+Path: `ungula/core/preferences/nvs_config_store.h`.
+
+```cpp
+#include <emblogx/logger.h>
+#include <ungula/core/preferences/nvs_config_store.h>
+
+struct MotorConfig {
+    float kp = 1.0f;
+    float ki = 0.1f;
+    float kd = 0.05f;
+    float max_rpm = 3000.0f;
+};
+
+static_assert(std::is_trivially_copyable<MotorConfig>::value, "NvsConfigStore requires trivially copyable ConfigT");
+
+NvsConfigStore<MotorConfig> motorCfg(prefs, "motor", "config");
+
+void loadMotorConfig() {
+    ConfigLoadStatus status;
+    MotorConfig cfg = motorCfg.load({}, &status);
+
+    if (status == ConfigLoadStatus::Recovered) {
+        log_warn("Motor config was corrupted, loaded defaults");
+    } else if (status == ConfigLoadStatus::Defaulted) {
+        log_info("No motor config stored, using defaults");
+    }
+
+    applyMotorConfig(cfg);
+}
+
+void saveMotorConfig(const MotorConfig& cfg) {
+    motorCfg.save(cfg);
+}
+```
+
+The blob written to NVS is `[ConfigT][CRC32]`. On a CRC mismatch at load, the defaults are returned AND rewritten — the corruption self-heals on the next boot.
+
 ## Testing
 
 ```shell
@@ -708,6 +751,7 @@ cd lib/tests
 | `StringUtils` | Trim, case, split, escape |
 | `Types` | Temperature conversion, math clamp/lerp |
 | `PID` | Proportional, integral, derivative, anti-windup, reset |
+| `NvsConfigStore` | Load/save, default fallback, CRC recovery self-heal |
 
 ## Acknowledgements
 

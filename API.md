@@ -43,6 +43,7 @@ Use this section first, then jump to the detailed API sections.
 | `preferences/platforms/esp32_preferences.*` | Yes | No | Compiled when `ESP_PLATFORM`, `ARDUINO_ARCH_ESP32`, or `ESP32` is defined; aliased as `Preferences` via `preferences.h`. Provides ESP32 `initStorage()` (wraps `nvs_flash_init`) |
 | `preferences/platforms/host_preferences.cpp` | No | Yes | No-op `initStorage()` for host tests / non-MCU builds |
 | `preferences/tools/programs/program_store.h` | Yes | Yes | Requires injected `IPreferences` implementation |
+| `preferences/nvs_config_store.h` | Yes | Yes | Header-only; requires injected `IPreferences` implementation |
 | `util/*` (`queue`, `crc32`, `string_*`, `types`) | Yes | Yes | Header-only utility layer |
 | `system/health_monitor.*` | Yes | Yes | Host returns heap counters as `0` |
 | `system/system_reboot.*` | Yes | No | Non-ESP build errors at compile time |
@@ -66,6 +67,7 @@ Use this section first, then jump to the detailed API sections.
 - **Do**: depend on `IPreferences` in reusable/domain classes.
 - **Do**: pair every `begin(ns)` with `end()`.
 - **Do**: use `ProgramStore` (`tools/programs/program_store.h`) for recipe/profile slots.
+- **Do**: use `NvsConfigStore` (`nvs_config_store.h`) for a single CRC-protected config struct.
 - **Don't**: include `preferences/platforms/*` in portable domain code.
 - **Don't**: read/write the `programs` namespace by hand when using `ProgramStore`.
 - **Don't**: share one `Preferences` instance across tasks.
@@ -287,6 +289,41 @@ each slot must be self-checking (corruption survives reboots
 otherwise). CRC32 is computed across `sizeof(ProgramT)` and rejects
 any slot that fails verification on load.
 
+### Use case: Single CRC-protected config struct
+
+```cpp
+#include <ungula/core/preferences/nvs_config_store.h>
+
+struct DeviceConfig {
+    float setpoint = 25.0f;
+    float kp = 1.0f;
+    float ki = 0.1f;
+    float kd = 0.05f;
+    uint32_t flags = 0;
+};
+
+static_assert(std::is_trivially_copyable<DeviceConfig>::value);
+
+NvsConfigStore<DeviceConfig> cfg(prefs, "dev", "cfg");
+
+void loadConfig() {
+    ConfigLoadStatus status;
+    DeviceConfig loaded = cfg.load({}, &status);
+    if (status == ConfigLoadStatus::Recovered) {
+        log_warn("Config was corrupted, reset to defaults");
+    }
+    applyConfig(loaded);
+}
+
+void saveConfig(const DeviceConfig& c) {
+    cfg.save(c);
+}
+```
+
+When to use this: one device-wide config struct (not a table of slots).
+CRC integrity check detects corruption; `Recovered` status triggers an
+automatic rewrite of defaults so the device self-heals on boot.
+
 ### Use case: Fixed-capacity queue (no heap)
 
 ```cpp
@@ -411,6 +448,8 @@ void printBootBanner() {
 | `ungula::core::preferences::Preferences` | `ungula/core/preferences/preferences.h` | Platform-selected alias (concrete impl picked at compile time) |
 | `ungula::core::preferences::Esp32Preferences` | `ungula/core/preferences/platforms/esp32_preferences.h` | ESP-IDF NVS implementation (internal — use the `Preferences` alias from app code) |
 | `ungula::core::preferences::programs::ProgramStore<T, N>` | `ungula/core/preferences/tools/programs/program_store.h` | CRC-checked recipe slot table |
+| `ungula::core::preferences::NvsConfigStore<T>` | `ungula/core/preferences/nvs_config_store.h` | CRC-protected single-config persistence |
+| `ungula::core::preferences::ConfigLoadStatus` | `ungula/core/preferences/nvs_config_store.h` | Load result: Loaded / Defaulted / Recovered |
 | `ungula::core::util::Queue<T, Capacity>` | `ungula/core/util/queue.h` | Fixed-capacity circular queue |
 | `ungula::core::system::SystemControl` | `ungula/core/system/system_reboot.h` | Reboot helpers |
 | `ungula::core::system::HealthMonitor` / `HealthSample` | `ungula/core/system/health_monitor.h` | Heap sampler |
@@ -548,6 +587,51 @@ the struct layout (added field, reordering, padding shift) invalidates
 existing slots silently — bump a project version field inside
 `ProgramT` if you want explicit migration.
 
+### `ungula::core::preferences::NvsConfigStore<ConfigT>`
+
+Header: `ungula/core/preferences/nvs_config_store.h`.
+
+Persist one POD config struct with a CRC32 checksum. On a CRC mismatch
+the stored blob is replaced with the defaults (self-healing). Layout on
+disk: `[ConfigT config][uint32_t crc]`.
+
+`ConfigT` must be trivially copyable. The store borrows `IPreferences`
+— the caller owns the namespace and key.
+
+`ConfigLoadStatus` enum: `Loaded` (valid blob read), `Defaulted`
+(nothing stored or wrong size), `Recovered` (CRC mismatch, defaults
+rewritten).
+
+- **`NvsConfigStore(IPreferences&, const char* ns, const char* key)`**
+  — borrows the preferences reference and stores ns/key.
+- **`ConfigT load(const ConfigT& defaults, ConfigLoadStatus* status = nullptr)`**
+  — reads the blob; returns `defaults` on miss or CRC failure.
+  Pass `status` to learn which happened. On `Recovered`, defaults are
+  also written back.
+- **`bool save(const ConfigT& config)`** — writes `config` + CRC.
+  Returns `false` if the namespace could not be opened or the write
+  failed.
+
+```cpp
+#include <ungula/core/preferences/nvs_config_store.h>
+
+struct MotorConfig {
+    float kp = 1.0f;
+    float ki = 0.1f;
+    float kd = 0.05f;
+    float max_speed = 200.0f;
+};
+
+static_assert(std::is_trivially_copyable<MotorConfig>::value,
+              "NvsConfigStore requires trivially copyable ConfigT");
+
+NvsConfigStore<MotorConfig> motorCfg(prefs, "motor", "config");
+
+MotorConfig loaded = motorCfg.load({});
+log_info("Config source: %d", static_cast<int>(status));
+motorCfg.save({2.0f, 0.2f, 0.1f, 180.0f});
+```
+
 ### `ungula::core::util::Queue<T, Capacity>`
 
 - **`bool push(const T&)`** / **`bool push(T&&)`** — `false` when full.
@@ -662,6 +746,9 @@ Output is intentionally unclamped — callers apply `[min, max]` after adding ba
   after the underlying `IPreferences` is usable. `saveProgram` and
   `deleteProgram` persist immediately; metadata (`activeIndex`,
   `lastUsedIndex`) is also persisted on every change.
+- **NvsConfigStore** — no `init()` required. Construct with the
+  `IPreferences` reference, namespace, and key; call `load()` or
+  `save()` as needed. The caller opens/closes the namespace internally.
 - **HealthMonitor** — single instance per project, sampled from
   `loop()`. No init required.
 - **Queue** — value-initialized; no init required.
@@ -689,6 +776,11 @@ No object in this library uses `new`/`delete` after construction.
 - `tz::offsetSeconds` — undefined enum values return `0` (UTC).
 - `Pid::update(error, dt_s)` — `dt_s <= 0` produces undefined derivative
   (caller is responsible for ensuring `dt_s > 0`).
+- `NvsConfigStore::load` — always returns a valid config (either stored or
+  defaults). Use the `ConfigLoadStatus*` parameter to distinguish sources.
+  On `Recovered`, defaults are written back automatically.
+- `NvsConfigStore::save` — returns `false` if the namespace could not be
+  opened or the write failed.
 
 ---
 
