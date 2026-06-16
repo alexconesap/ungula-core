@@ -154,6 +154,15 @@ inline epoch_ms_t nowUtc()
         return now();
 }
 
+/// True when an installed provider reports a trustworthy wall clock, i.e. `now()`
+/// returns real UTC epoch-ms rather than the monotonic boot fallback. UI / clock
+/// code uses this to choose between rendering the time and a placeholder, without
+/// knowing or naming the backend (NTP, battery RTC, GPS, …).
+inline bool hasValidWallClock()
+{
+        return detail::provider_ != nullptr && detail::provider_->isValid();
+}
+
 /// Wall-clock in the timezone configured via
 /// `setTimezoneOffsetSeconds()`. Equals `now()` until that setter
 /// has been called.
