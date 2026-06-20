@@ -82,54 +82,55 @@ enum class Timezone : uint8_t {
 struct Entry {
         Timezone tz;
         int32_t offsetSeconds;
-        const char *abbreviation;
+        const char *abbreviation; // canonical code (PDT, JST, ...)
+        const char *name; // human-friendly region (the abbreviation + offset disambiguate)
 };
 
-/// Single source of truth for the (enum → offset, name) mapping.
+/// Single source of truth for the (enum → offset, code, friendly-name) mapping.
 /// `constexpr` so callers can use it at compile time too.
 inline constexpr Entry TIMEZONES[] = {
-        { Timezone::UTC, 0, "UTC" },
-        { Timezone::GMT, 0, "GMT" },
-        { Timezone::WET, 0, "WET" },
+        { Timezone::UTC, 0, "UTC", "UTC" },
+        { Timezone::GMT, 0, "GMT", "Greenwich" },
+        { Timezone::WET, 0, "WET", "W Europe" },
 
-        { Timezone::BST_UK, 1 * 3600, "BST" },
-        { Timezone::CET, 1 * 3600, "CET" },
-        { Timezone::WEST, 1 * 3600, "WEST" },
-        { Timezone::CEST, 2 * 3600, "CEST" },
-        { Timezone::EET, 2 * 3600, "EET" },
-        { Timezone::EEST, 3 * 3600, "EEST" },
-        { Timezone::MSK, 3 * 3600, "MSK" },
-        { Timezone::GST, 4 * 3600, "GST" },
-        { Timezone::PKT, 5 * 3600, "PKT" },
-        { Timezone::IST_IN, (5 * 3600) + (30 * 60), "IST" },
-        { Timezone::BDT, 6 * 3600, "BDT" },
-        { Timezone::ICT, 7 * 3600, "ICT" },
-        { Timezone::CST_CN, 8 * 3600, "CST" },
-        { Timezone::SGT, 8 * 3600, "SGT" },
-        { Timezone::AWST, 8 * 3600, "AWST" },
-        { Timezone::JST, 9 * 3600, "JST" },
-        { Timezone::KST, 9 * 3600, "KST" },
-        { Timezone::ACST, (9 * 3600) + (30 * 60), "ACST" },
-        { Timezone::AEST, 10 * 3600, "AEST" },
-        { Timezone::AEDT, 11 * 3600, "AEDT" },
-        { Timezone::NZST, 12 * 3600, "NZST" },
-        { Timezone::NZDT, 13 * 3600, "NZDT" },
+        { Timezone::BST_UK, 1 * 3600, "BST", "UK" },
+        { Timezone::CET, 1 * 3600, "CET", "C Europe" },
+        { Timezone::WEST, 1 * 3600, "WEST", "W Europe" },
+        { Timezone::CEST, 2 * 3600, "CEST", "C Europe" },
+        { Timezone::EET, 2 * 3600, "EET", "E Europe" },
+        { Timezone::EEST, 3 * 3600, "EEST", "E Europe" },
+        { Timezone::MSK, 3 * 3600, "MSK", "Moscow" },
+        { Timezone::GST, 4 * 3600, "GST", "Dubai" },
+        { Timezone::PKT, 5 * 3600, "PKT", "Pakistan" },
+        { Timezone::IST_IN, (5 * 3600) + (30 * 60), "IST", "India" },
+        { Timezone::BDT, 6 * 3600, "BDT", "Bangladesh" },
+        { Timezone::ICT, 7 * 3600, "ICT", "Indochina" },
+        { Timezone::CST_CN, 8 * 3600, "CST", "China" },
+        { Timezone::SGT, 8 * 3600, "SGT", "Singapore" },
+        { Timezone::AWST, 8 * 3600, "AWST", "W Australia" },
+        { Timezone::JST, 9 * 3600, "JST", "Japan" },
+        { Timezone::KST, 9 * 3600, "KST", "Korea" },
+        { Timezone::ACST, (9 * 3600) + (30 * 60), "ACST", "C Australia" },
+        { Timezone::AEST, 10 * 3600, "AEST", "E Australia" },
+        { Timezone::AEDT, 11 * 3600, "AEDT", "E Australia" },
+        { Timezone::NZST, 12 * 3600, "NZST", "New Zealand" },
+        { Timezone::NZDT, 13 * 3600, "NZDT", "New Zealand" },
 
-        { Timezone::BRT, -3 * 3600, "BRT" },
-        { Timezone::ART, -3 * 3600, "ART" },
-        { Timezone::NST, -((3 * 3600) + (30 * 60)), "NST" },
-        { Timezone::AST_ATL, -4 * 3600, "AST" },
-        { Timezone::EST, -5 * 3600, "EST" },
-        { Timezone::EDT, -4 * 3600, "EDT" },
-        { Timezone::CST_NA, -6 * 3600, "CST" },
-        { Timezone::CDT_NA, -5 * 3600, "CDT" },
-        { Timezone::MST_NA, -7 * 3600, "MST" },
-        { Timezone::MDT_NA, -6 * 3600, "MDT" },
-        { Timezone::PST_NA, -8 * 3600, "PST" },
-        { Timezone::PDT_NA, -7 * 3600, "PDT" },
-        { Timezone::AKST, -9 * 3600, "AKST" },
-        { Timezone::AKDT, -8 * 3600, "AKDT" },
-        { Timezone::HST, -10 * 3600, "HST" },
+        { Timezone::BRT, -3 * 3600, "BRT", "Brazil" },
+        { Timezone::ART, -3 * 3600, "ART", "Argentina" },
+        { Timezone::NST, -((3 * 3600) + (30 * 60)), "NST", "Newfoundland" },
+        { Timezone::AST_ATL, -4 * 3600, "AST", "Atlantic" },
+        { Timezone::EST, -5 * 3600, "EST", "US Eastern" },
+        { Timezone::EDT, -4 * 3600, "EDT", "US Eastern" },
+        { Timezone::CST_NA, -6 * 3600, "CST", "US Central" },
+        { Timezone::CDT_NA, -5 * 3600, "CDT", "US Central" },
+        { Timezone::MST_NA, -7 * 3600, "MST", "US Mountain" },
+        { Timezone::MDT_NA, -6 * 3600, "MDT", "US Mountain" },
+        { Timezone::PST_NA, -8 * 3600, "PST", "US Pacific" },
+        { Timezone::PDT_NA, -7 * 3600, "PDT", "US Pacific" },
+        { Timezone::AKST, -9 * 3600, "AKST", "Alaska" },
+        { Timezone::AKDT, -8 * 3600, "AKDT", "Alaska" },
+        { Timezone::HST, -10 * 3600, "HST", "Hawaii" },
 };
 
 /// Resolve a Timezone to its UTC offset in seconds.
@@ -151,6 +152,17 @@ constexpr const char *abbreviation(Timezone tz)
         for (const auto &entry : TIMEZONES) {
                 if (entry.tz == tz) {
                         return entry.abbreviation;
+                }
+        }
+        return "UTC";
+}
+
+/// Resolve a Timezone to its human-friendly region name ("US Pacific", ...).
+constexpr const char *name(Timezone tz)
+{
+        for (const auto &entry : TIMEZONES) {
+                if (entry.tz == tz) {
+                        return entry.name;
                 }
         }
         return "UTC";
