@@ -27,6 +27,21 @@ class Pid {
         {
         }
 
+        /// Replace the gains at runtime (operator tuning). The caller decides
+        /// whether to reset() afterwards — a live gain change leaves the integral
+        /// accumulator intact, which can kick the output on a big jump, so a
+        /// reset() right after is the usual choice.
+        void setConfig(const PidConfig &cfg)
+        {
+                cfg_ = cfg;
+        }
+
+        /// Current gains — useful for logging or round-tripping a tuning edit.
+        const PidConfig &config() const
+        {
+                return cfg_;
+        }
+
         /// Drop integral + derivative history. Call after a setpoint jump, when
         /// the loop has been disabled for a while, or after a hard-stop event
         /// (limit reached, motor disabled) — any case where the carried error
