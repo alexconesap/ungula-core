@@ -26,6 +26,7 @@ add_compile_definitions(
 )
 
 add_executable(test_ungula_core
+    test_counter_store.cpp
     test_crc32.cpp
     test_nvs_config_store.cpp
     test_preferences_layout.cpp

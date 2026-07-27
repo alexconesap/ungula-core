@@ -38,6 +38,7 @@ Ultimately, my goal is to port 100% of the code from one hardware platform for e
   - [Persistent Key-Value Storage](#persistent-key-value-storage)
   - [Program Store (Recipe Manager)](#program-store-recipe-manager)
   - [Config Store (Single Config)](#config-store-single-config)
+  - [Counters (Named Lifetime Tallies)](#counters-named-lifetime-tallies)
 - [Testing](#testing)
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
@@ -736,6 +737,51 @@ void saveMotorConfig(const MotorConfig& cfg) {
 
 The blob written to NVS is `[ConfigT][CRC32]`. On a CRC mismatch at load, the defaults are returned AND rewritten — the corruption self-heals on the next boot.
 
+### Counters (Named Lifetime Tallies)
+
+`CounterStore` keeps named `uint32_t` counters in their own storage namespace — how many programs a machine has run, how many times it booted, how many cycles a component did. Each counter is one key, so writing one never rewrites the others.
+
+Path: `ungula/core/preferences/tools/counters/counter_store.h`. Namespace: `ungula::core::preferences::counters`.
+
+```cpp
+#include <ungula/core/preferences/tools/counters/counter_store.h>
+
+namespace counters = ungula::core::preferences::counters;
+
+counters::CounterStore machineCounters(prefs);          // namespace "counters"
+counters::CounterStore nodeCounters(prefs, "cnt_node"); // or your own
+
+void onProgramStarted() {
+    const uint32_t total = machineCounters.increment("runs"); // creates it at 1
+    log_info("program run #%u", (unsigned)total);
+}
+
+uint32_t runsSoFar() {
+    return machineCounters.read("runs");    // 0 when never created
+}
+
+void onFactoryReset() {
+    machineCounters.reset("runs");          // back to 0, key kept
+}
+```
+
+| Call | Behavior |
+| --- | --- |
+| `read(name)` | Current value. `0` when the counter does not exist. Never writes. |
+| `write(name, value)` | Sets the value, creating the counter if needed. `false` on failure. |
+| `increment(name, step = 1)` | Read + add + write. Returns the new value, or `0` if it failed. |
+| `reset(name)` | `write(name, 0)`. The key stays, so `exists()` stays true. |
+| `exists(name)` | Tells "never counted" from "counted zero times". |
+| `isValidName(name)` (static) | 1..15 chars — validate operator-supplied names before use. |
+
+Notes:
+
+- **Name limit is 15 characters.** ESP32 NVS keys cap there; a longer name is rejected rather than truncated, because two names sharing the first 15 chars would silently become one counter.
+- **Counters saturate at `UINT32_MAX`**, they do not wrap. That is also why a successful `increment()` can never return `0` — `0` means the write failed.
+- **`CounterStore` holds no state**, only the `IPreferences` reference and the namespace. Build one at the call site if you prefer: `CounterStore(prefs).increment("runs");`
+- **Flash wear**: one storage entry per write. On ESP32 NVS a 4 KB page holds 126 entries and is rewritten when full, against ~100k erase cycles per page — at 10 increments/day that is thousands of years. It is still a per-run/per-boot tool: never increment inside a control loop. Count in RAM and persist the total once, when the run finishes.
+- **Not thread-safe.** The injected `IPreferences` owns one backend handle; call counters from the same task as your other preferences use.
+
 ## Testing
 
 ```shell
@@ -752,6 +798,7 @@ cd lib/tests
 | `Types` | Temperature conversion, math clamp/lerp |
 | `PID` | Proportional, integral, derivative, anti-windup, reset |
 | `NvsConfigStore` | Load/save, default fallback, CRC recovery self-heal |
+| `CounterStore` | Create-on-first-use, increment/reset, saturation, name limits, one write per increment, backend failure |
 
 ## Acknowledgements
 

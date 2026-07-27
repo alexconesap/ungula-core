@@ -13,7 +13,7 @@
     "type": "git",
     "url": "https://github.com/alexconesap/ungula-core.git"
   },
-  "version": "2.2.0",
+  "version": "2.4.1",
   "frameworks": ["arduino", "espidf", "*"],
   "platforms": ["espressif32", "espressif8266", "native", "raspberrypi"],
   "headers": "ungula/core.h",

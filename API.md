@@ -31,6 +31,7 @@ Use this section first, then jump to the detailed API sections.
 - **Portable persistence contract**: `#include <ungula/core/preferences/i_preferences.h>`.
 - **Platform-selected preferences facade**: `#include <ungula/core/preferences/preferences.h>`.
 - **Program/recipe slots utility**: `#include <ungula/core/preferences/tools/programs/program_store.h>`.
+- **Persistent counters utility**: `#include <ungula/core/preferences/tools/counters/counter_store.h>`.
 - **Time only**: `#include <ungula/core/time/time.h>`.
 
 ### Platform matrix
@@ -43,6 +44,7 @@ Use this section first, then jump to the detailed API sections.
 | `preferences/platforms/esp32_preferences.*` | Yes | No | Compiled when `ESP_PLATFORM`, `ARDUINO_ARCH_ESP32`, or `ESP32` is defined; aliased as `Preferences` via `preferences.h`. Provides ESP32 `initStorage()` (wraps `nvs_flash_init`) |
 | `preferences/platforms/host_preferences.cpp` | No | Yes | No-op `initStorage()` for host tests / non-MCU builds |
 | `preferences/tools/programs/program_store.h` | Yes | Yes | Requires injected `IPreferences` implementation |
+| `preferences/tools/counters/counter_store.h` | Yes | Yes | Header-only; requires injected `IPreferences` implementation |
 | `preferences/nvs_config_store.h` | Yes | Yes | Header-only; requires injected `IPreferences` implementation |
 | `util/*` (`queue`, `crc32`, `string_*`, `types`) | Yes | Yes | Header-only utility layer |
 | `system/health_monitor.*` | Yes | Yes | Host returns heap counters as `0` |
@@ -68,6 +70,7 @@ Use this section first, then jump to the detailed API sections.
 - **Do**: pair every `begin(ns)` with `end()`.
 - **Do**: use `ProgramStore` (`tools/programs/program_store.h`) for recipe/profile slots.
 - **Do**: use `NvsConfigStore` (`nvs_config_store.h`) for a single CRC-protected config struct.
+- **Do**: use `CounterStore` (`tools/counters/counter_store.h`) for lifetime event tallies (runs, boots, cycles) — one increment per discrete event, never per loop iteration.
 - **Don't**: include `preferences/platforms/*` in portable domain code.
 - **Don't**: read/write the `programs` namespace by hand when using `ProgramStore`.
 - **Don't**: share one `Preferences` instance across tasks.
@@ -151,6 +154,18 @@ Call this function prior to `wifi`, `espnow`, `ble`, or any
 | active slot | `getActiveIndex/setActiveIndex` | rejects invalid target slot |
 | metadata | `getLastUsedIndex/setLastUsedIndex` | persisted in same namespace |
 | capacity | `countValid/maxPrograms` | count / compile-time capacity |
+
+#### CounterStore
+
+| Goal | Call | Return / behavior |
+| --- | --- | --- |
+| read a tally | `counters.read("runs")` | `uint32_t`; `0` when never created |
+| set / create | `counters.write("runs", n)` | `bool` success |
+| count one event | `counters.increment("runs")` | new value; `0` on failure; saturates at `UINT32_MAX` |
+| count by step | `counters.increment("meters", n)` | same, adding `n` |
+| zero it | `counters.reset("runs")` | `bool`; key kept |
+| created yet? | `counters.exists("runs")` | `bool` |
+| name check | `CounterStore::isValidName(n)` | `bool`; 1..15 chars |
 
 ---
 
@@ -324,6 +339,41 @@ When to use this: one device-wide config struct (not a table of slots).
 CRC integrity check detects corruption; `Recovered` status triggers an
 automatic rewrite of defaults so the device self-heals on boot.
 
+### Use case: Persistent execution counter
+
+```cpp
+#include <ungula/core/preferences/tools/counters/counter_store.h>
+
+namespace counters = ungula::core::preferences::counters;
+
+counters::CounterStore machineCounters(prefs);   // namespace "counters"
+
+void onBoot() {
+    machineCounters.increment("boots");
+}
+
+void onProgramStarted() {
+    const uint32_t n = machineCounters.increment("runs");   // new value
+    log_info("run #%u", (unsigned)n);
+}
+
+uint32_t totalRuns() {
+    return machineCounters.read("runs");          // 0 when never created
+}
+
+void onFactoryReset() {
+    machineCounters.reset("runs");                // 0, key kept
+}
+```
+
+When to use this: lifetime tallies of discrete events — programs executed,
+boots, cycles per component, faults seen. One key per counter, so writing
+one never rewrites the others.
+
+When NOT to use it: anything counted per loop iteration or per tick. One
+storage write per increment; keep those in RAM and persist the total once
+when the run ends.
+
 ### Use case: Fixed-capacity queue (no heap)
 
 ```cpp
@@ -450,6 +500,7 @@ void printBootBanner() {
 | `ungula::core::preferences::programs::ProgramStore<T, N>` | `ungula/core/preferences/tools/programs/program_store.h` | CRC-checked recipe slot table |
 | `ungula::core::preferences::NvsConfigStore<T>` | `ungula/core/preferences/nvs_config_store.h` | CRC-protected single-config persistence |
 | `ungula::core::preferences::ConfigLoadStatus` | `ungula/core/preferences/nvs_config_store.h` | Load result: Loaded / Defaulted / Recovered |
+| `ungula::core::preferences::counters::CounterStore` | `ungula/core/preferences/tools/counters/counter_store.h` | Named persistent `uint32_t` counters (runs, boots, cycles) |
 | `ungula::core::util::Queue<T, Capacity>` | `ungula/core/util/queue.h` | Fixed-capacity circular queue |
 | `ungula::core::system::SystemControl` | `ungula/core/system/system_reboot.h` | Reboot helpers |
 | `ungula::core::system::HealthMonitor` / `HealthSample` | `ungula/core/system/health_monitor.h` | Heap sampler |
@@ -632,6 +683,61 @@ log_info("Config source: %d", static_cast<int>(status));
 motorCfg.save({2.0f, 0.2f, 0.1f, 180.0f});
 ```
 
+### `ungula::core::preferences::counters::CounterStore`
+
+Header: `ungula/core/preferences/tools/counters/counter_store.h`.
+
+Named persistent `uint32_t` counters, one storage key each, inside a
+dedicated namespace (default `"counters"`). Backend-agnostic — it only
+talks to the injected `IPreferences`.
+
+The class holds no state beyond the reference and the namespace, so it
+can be built at the call site: `CounterStore(prefs).increment("runs");`
+
+- **`CounterStore(IPreferences&, const char* ns = DEFAULT_NAMESPACE)`**
+  — borrows the preferences reference.
+- **`uint32_t read(const char* name) const`** — current value; `0` when
+  the counter does not exist, the name is invalid, or the backend
+  refuses to open. Never writes.
+- **`bool write(const char* name, uint32_t value) const`** — sets the
+  value, creating the counter on first use.
+- **`uint32_t increment(const char* name, uint32_t step = 1) const`** —
+  read + add + write. Returns the new stored value, or `0` on failure
+  (a successful increment can never return `0`; values saturate at
+  `MAX_VALUE` instead of wrapping).
+- **`bool reset(const char* name) const`** — `write(name, 0)`. The key
+  survives, so `exists()` stays true.
+- **`bool exists(const char* name) const`** — distinguishes "never
+  counted" from "counted zero times".
+- **`static bool isValidName(const char* name)`** — 1..`MAX_NAME_LEN`
+  (15) chars. Longer names are rejected, not truncated: two names
+  sharing the first 15 chars would collide into one counter.
+
+Constants: `DEFAULT_NAMESPACE` (`"counters"`), `MAX_NAME_LEN` (15),
+`MAX_VALUE` (`UINT32_MAX`).
+
+Not thread-safe — the injected `IPreferences` owns a single backend
+handle. Each call is `begin()` → op → `end()`, so it never leaves the
+namespace open.
+
+```cpp
+#include <ungula/core/preferences/tools/counters/counter_store.h>
+
+namespace counters = ungula::core::preferences::counters;
+
+counters::CounterStore machineCounters(prefs);
+counters::CounterStore nodeCounters(prefs, "cnt_node");   // separate namespace
+
+machineCounters.increment("boots");
+const uint32_t runs = machineCounters.increment("runs");
+```
+
+Cost model: one storage entry per write. On ESP32 NVS a 4 KB page holds
+126 entries and is erased once full, against ~100k erase cycles per
+page — a handful of increments per day is many centuries of margin.
+Per-loop or per-tick counting is NOT what this is for: accumulate in RAM
+and persist the total once.
+
 ### `ungula::core::util::Queue<T, Capacity>`
 
 - **`bool push(const T&)`** / **`bool push(T&&)`** — `false` when full.
@@ -749,6 +855,9 @@ Output is intentionally unclamped — callers apply `[min, max]` after adding ba
 - **NvsConfigStore** — no `init()` required. Construct with the
   `IPreferences` reference, namespace, and key; call `load()` or
   `save()` as needed. The caller opens/closes the namespace internally.
+- **CounterStore** — no `init()` required, and counters are created on
+  first `write`/`increment`/`reset`. Stateless besides the reference and
+  namespace, so it can live as a member or be built at the call site.
 - **HealthMonitor** — single instance per project, sampled from
   `loop()`. No init required.
 - **Queue** — value-initialized; no init required.
@@ -781,6 +890,14 @@ No object in this library uses `new`/`delete` after construction.
   On `Recovered`, defaults are written back automatically.
 - `NvsConfigStore::save` — returns `false` if the namespace could not be
   opened or the write failed.
+- `CounterStore::read` — returns `0` for a missing counter, an invalid
+  name, or a backend that refused to open. Use `exists()` when the
+  difference matters.
+- `CounterStore::increment` — returns `0` on failure only; a successful
+  increment always returns `>= 1` because values saturate at
+  `MAX_VALUE` instead of wrapping.
+- `CounterStore::write` / `reset` — `false` on an invalid name or a
+  backend failure.
 
 ---
 
@@ -807,6 +924,9 @@ No object in this library uses `new`/`delete` after construction.
 - **NVS access** is mutex-protected by ESP-IDF, but `Preferences`
   is single-instance-per-namespace by design — do not share one
   `Preferences` object across tasks.
+- **CounterStore**: inherits the `Preferences` rule above — all counter
+  calls from the same task that owns the injected instance. Every call
+  costs one storage write when it writes; count per-event, not per-loop.
 - **CRC32** functions are pure and reentrant.
 - **HealthMonitor::sample** reads
   `esp_get_free_heap_size`/`esp_get_minimum_free_heap_size` on ESP32 —
