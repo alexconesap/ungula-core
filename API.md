@@ -84,6 +84,7 @@ Use this section first, then jump to the detailed API sections.
 - **Do**: use `CounterStore` (`tools/counters/counter_store.h`) for lifetime event tallies (runs, boots, cycles) — one increment per discrete event, never per loop iteration.
 - **Don't**: include `preferences/platforms/*` in portable domain code.
 - **Don't**: read/write the `programs` namespace by hand when using `ProgramStore`.
+- **Do**: give each stored object its own NVS namespace.
 - **Don't**: share one `Preferences` instance across tasks.
 - **Don't**: spell the platform class name (`Esp32Preferences`) in application code — use the `Preferences` alias so the code stays portable.
 
@@ -117,10 +118,10 @@ Call this function prior to `wifi`, `espnow`, `ble`, or any
 
 #### Utilities (`ungula::core::util`)
 
-- **Do**: use `Queue<T,N>` for bounded no-heap buffering inside a single task.
+- **Do**: use `Queue<T,N>` for bounded no-heap buffering inside a single task, instead of `std::deque` or a hand-rolled dynamic ring buffer.
 - **Don't**: use `Queue<T,N>` across an ISR boundary — no barriers, no locking.
 - **Do**: use `crc32`/`crc32_byte` for wire/storage integrity checks.
-- **Do**: use `string_t`/`string_view_t` and `str::*` helpers for text utilities.
+- **Do**: use `string_t`/`string_view_t` and `str::*` helpers for text utilities, instead of Arduino `String`. `string_indexOf` / `string_substring` / `string_equals` are a porting aid — prefer the `std::string` members in new code.
 - **Don't**: reimplement CRC/queue/string helpers already provided here.
 
 #### Control (`ungula::core::control`)
@@ -129,6 +130,10 @@ Call this function prior to `wifi`, `espnow`, `ble`, or any
 - **Do**: call `reset()` after setpoint jumps, loop disable, or hard-stop events.
 - **Do**: ensure `dt_s > 0` on every `update()` call — zero or negative dt produces undefined derivative.
 - **Don't**: assume the output is bounded — anti-windup clamps the integral accumulator, not the final output.
+
+#### Library-wide
+
+- **Don't**: add logging into this library — surface state through return values or callbacks (project rule).
 
 ### LLM fast callsheet
 
@@ -1028,21 +1033,3 @@ No object in this library uses `new`/`delete` after construction.
   reach into NVS for these keys directly.
 - `ungula/core/preferences/platforms/esp32_preferences.cpp` — the `nvs_flash` glue.
   Use the `IPreferences` interface; never include this file from app code.
----
-
-## LLM usage rules
-
-The per-subsystem Do/Don't checklists near the top are the detailed version.
-The ones that are easy to get wrong and are not repeated there:
-
-- Treat `IPreferences` as the only persistence interface. Depend on the
-  abstract type in domain code, not on the `Preferences` alias or on
-  `Esp32Preferences`. One namespace per object.
-- Prefer `ProgramStore` / `NvsConfigStore` over hand-rolled NVS
-  serialization, and never touch the `programs` namespace by hand.
-- Use `Queue<T, N>` instead of `std::deque` or a dynamic ring buffer.
-- Use `string_t` / `string_view_t` and the `str::` helpers instead of Arduino
-  `String`. `string_indexOf` / `string_substring` / `string_equals` are a
-  porting aid — prefer the `std::string` members in new code.
-- Don't add logging into this library; surface state via return values or
-  callbacks (project rule).
