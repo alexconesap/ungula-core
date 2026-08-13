@@ -6,7 +6,7 @@
 
 > **Warning - Active Development:** This library is under active architecture work to support multiple projects in parallel. Its structure is not finalized yet and may change without notice while this work is in progress. Updates are currently frequent (often daily). Target for structural freeze and stable `v1.0.0`: **June 2026**.
 
-Generic utility library for embedded projects, fully portable. It handles persistent storage, time control/delays, logging, system control, and various utility functions.
+Generic utility library for embedded projects, fully portable. It handles persistent storage, time control/delays, system control, and various utility functions. It never logs — the host project decides what to do with the values it returns.
 
 When I recently started working on an existing Arduino-based C++ project that used only the ESP32 hardware, I quickly realized how much work it takes to migrate from Arduino libraries to the ESP32 SDK. To do this gradually, I began implementing this library, which allows me to easily port projects that still rely on certain Arduino libraries (for example, to control specific motor drivers or sensors) while accessing ESP32 libraries natively to improve overall performance.
 
@@ -23,9 +23,11 @@ Ultimately, my goal is to port 100% of the code from one hardware platform for e
   - [Useful helpers](#useful-helpers)
   - [Wall-clock vs monotonic — what each call returns](#wall-clock-vs-monotonic-what-each-call-returns)
   - [Pluggable time source (`ungula/core/time/i_time_provider.h`)](#pluggable-time-source-ungulacoretimeitimeproviderh)
+  - [Coordinator-synced clock](#coordinator-synced-clock)
   - [Formatting (`ungula/core/time/time_format.h`)](#formatting-ungulacoretimetimeformath)
 - [System Control (`ungula/core/system/`)](#system-control-ungulacoresystem)
   - [Chip Info (`ungula/core/system/chip_info.h`)](#chip-info-ungulacoresystemchipinfoh)
+  - [Health Monitor (`ungula/core/system/health_monitor.h`)](#health-monitor-ungulacoresystemhealthmonitorh)
 - [Control (`ungula/core/control/`)](#control-ungulacorecontrol)
   - [PID Controller (`ungula/core/control/pid.h`)](#pid-controller-ungulacorecontrolpidh)
 - [Utilities](#utilities)
@@ -189,6 +191,20 @@ All time values are signed `int64_t`. See "Why `int64_t`" below for the rational
 | `now()` / `nowUtc()` | `epoch_ms_t` | `ITimeProvider` if installed and valid, else `millis()` | wall-clock UTC for logs, scheduling |
 | `nowLocal()` | `epoch_ms_t` | `now() + setTimezoneOffsetSeconds()` | wall-clock in the configured TZ |
 | `nowInTz(offset_s)` | `epoch_ms_t` | `now() + offset_s * 1000` | one-off arbitrary TZ |
+| `nowUs()` | `tick_us_t` | plain alias for `micros()` — never routed through the provider | high-resolution intervals |
+| `hasValidWallClock()` | `bool` | provider installed **and** `isValid()` | decide between rendering a date and a placeholder |
+
+`hasValidWallClock()` is the honest test for "is `now()` a real date". Without it, `now()` silently returns a monotonic boot tick that looks like an epoch in early 1970:
+
+```cpp
+if (tc::hasValidWallClock()) {
+    char ts[24];
+    tc::formatLocal(ts, sizeof(ts));
+    showClock(ts);
+} else {
+    showClock("--:--:--");
+}
+```
 
 UTC is the default. `setTimezoneOffsetSeconds(int32_t)` (or the named-zone overload `setTimezone(tz::Timezone)`) configures `nowLocal()`; `now()` / `nowUtc()` ignore it. No DST awareness — entries like `PST_NA` and `PDT_NA` are separate zones and the application picks which one is in effect.
 
@@ -285,16 +301,16 @@ If the device is configured for one zone but a single read needs another (e.g. a
 
 tc::setTimezone(tz::Timezone::PST_NA);  // device is in LA
 
-const uint64_t bcnNow = tc::nowInTz(
+const tc::epoch_ms_t bcnNow = tc::nowInTz(
         tz::offsetSeconds(tz::Timezone::CET));    // one-off Barcelona view
-const uint64_t laNow  = tc::nowLocal(); // still LA — unchanged
+const tc::epoch_ms_t laNow  = tc::nowLocal(); // still LA — unchanged
 ```
 
 ##### Inventory
 
 The full mapping lives in `ungula/core/time/timezones.h` as a `constexpr` table — about 40 commonly used abbreviations including UTC/GMT/WET, the European set (CET/CEST/EET/EEST/MSK/BST_UK), the Asia/Pacific set (IST_IN/CST_CN/SGT/JST/KST/AEST/AEDT/ACST/NZST/NZDT), and the Americas (EST/EDT/CST_NA/CDT_NA/MST_NA/MDT_NA/PST_NA/PDT_NA/HST/AKST/AKDT/AST_ATL/BRT/ART). DST-observing zones appear as separate entries (e.g. `PST_NA` and `PDT_NA`) — the application chooses which one is currently active.
 
-`tz::offsetSeconds(zone)` and `tz::abbreviation(zone)` are also exposed for callers that need the values directly without going through the time API.
+`tz::offsetSeconds(zone)`, `tz::abbreviation(zone)` (short code, e.g. `"JST"`) and `tz::name(zone)` (friendly region, e.g. `"US Pacific"`) are exposed for callers that need the values directly without going through the time API. The backing `tz::TIMEZONES[]` table of `tz::Entry` is `constexpr` and public too — iterate it to build a zone picker.
 
 ### Pluggable time source (`ungula/core/time/i_time_provider.h`)
 
@@ -313,7 +329,7 @@ namespace tc = ungula::core::time;
 /// tc::now() returns the local monotonic clock on its own.
 class NtpTimeProvider final : public ITimeProvider {
     public:
-        uint64_t nowMs() const override {
+        int64_t nowMs() const override {
             return current_epoch_ms_;
         }
         bool isValid() const override {
@@ -321,7 +337,7 @@ class NtpTimeProvider final : public ITimeProvider {
         }
 
         /// Called by the NTP sink whenever a fresh sample lands.
-        void onNtpSample(uint64_t epochMs) {
+        void onNtpSample(int64_t epochMs) {
             current_epoch_ms_ = epochMs;
             synchronized_ = true;
         }
@@ -332,7 +348,7 @@ class NtpTimeProvider final : public ITimeProvider {
         }
 
     private:
-        uint64_t current_epoch_ms_ = 0;
+        int64_t current_epoch_ms_ = 0;
         bool synchronized_ = false;
 };
 
@@ -353,6 +369,35 @@ Contract:
 - `micros()` and `nowUs()` are **not** routed through the provider — microsecond-grade external sources are rare enough to not pay for the indirection.
 
 `ITimeProvider` is independent from the `setSyncTime()` / `syncNow()` pair. The sync clock stores a fixed offset to a coordinator's millisecond timestamp; the provider replaces the clock source entirely. Pick one, not both, per deployment.
+
+### Coordinator-synced clock
+
+For a mesh where one node is the timing reference (ESP-NOW coordinator, for example), the sync clock aligns the local monotonic tick to the coordinator's without pretending to be a wall clock. One subtraction on sync, one addition per read:
+
+```cpp
+#include <ungula/core/time/time.h>
+
+namespace tc = ungula::core::time;
+
+void onCoordinatorBeacon(tc::tick_ms_t coordinatorMs) {
+    tc::setSyncTime(coordinatorMs);          // stores coordinatorMs - millis()
+}
+
+void scheduleStep() {
+    const tc::tick_ms_t common = tc::syncNow();   // millis() + offset
+    // ...all nodes agree on 'common' to within the beacon jitter
+}
+```
+
+| Call | Behavior |
+| --- | --- |
+| `setSyncTime(remoteMs)` / `setSyncTimeUs(remoteUs)` | Store the offset against `millis()` / `micros()`. Marks the clock synced. |
+| `syncNow()` / `syncNowUs()` | Local tick plus the stored offset. |
+| `syncOffset()` / `syncOffsetUs()` | The stored offsets, in ms and us. |
+| `isSynced()` | True once either setter has run. |
+| `clearSync()` | Zero both offsets and drop the flag. |
+
+The ms and us offsets are independent: `setSyncTime()` leaves `syncOffsetUs()` at 0 and vice versa, even though either one flips `isSynced()` to true. Set whichever resolution you actually read.
 
 ### Formatting (`ungula/core/time/time_format.h`)
 
@@ -420,7 +465,38 @@ void setup() {
 }
 ```
 
-Fields: `model`, `sdkVersion`, `features` (human-readable string), `cores`, `revision`, `hasWifi`, `hasBluetooth`, `hasBle`, `hasPsram`.
+Fields: `model`, `sdkVersion`, `features` (human-readable string), `cores`, `revision`, `hasWifi`, `hasBluetooth`, `hasBle`, `hasPsram`. All strings are fixed-size in-struct buffers (`CHIP_MODEL_MAX_LEN`, `SDK_VERSION_MAX_LEN`, `CHIP_FEATURES_MAX_LEN`), so the struct can be copied around freely.
+
+### Health Monitor (`ungula/core/system/health_monitor.h`)
+
+Samples the free-heap counter on a gate so you can watch the trend. Firmware that allocates nothing after boot should show `free_heap` oscillating around a fixed value; a monotonic downward drift is a leak, and it is usually the only early signal you get.
+
+The monitor collects numbers and nothing else — it does not log, that is the caller's job.
+
+```cpp
+#include <ungula/core/system/health_monitor.h>
+
+static ungula::core::system::HealthMonitor health;
+
+void loop() {
+    ungula::core::system::HealthSample s;
+    if (health.sample(60000U, s)) {   // at most once a minute
+        log_info("heap free=%u min=%u delta=%ld up=%u",
+                 s.free_heap, s.min_free_heap, (long)s.delta, s.uptime_ms);
+    }
+}
+```
+
+| Call | Behavior |
+| --- | --- |
+| `sample(intervalMs, out)` | Fills `out` and returns `true` only when `intervalMs` have passed. The first call always fires, with `delta == 0`. `out` is untouched when it returns `false`. |
+| `reset()` | Drop the baseline, so the next `delta` is measured against a fresh sample. Use after a deliberate large alloc/free. |
+
+`HealthSample` fields: `free_heap`, `min_free_heap` (lowest ever seen since boot), `delta` (signed, current minus previous), `uptime_ms`.
+
+On host builds the heap counters are stubbed to `0`, so every sample reports zeros. On ESP32 they come from `heap_caps_get_free_size(MALLOC_CAP_DEFAULT)` and `heap_caps_get_minimum_free_size(MALLOC_CAP_DEFAULT)`.
+
+Note that `uptime_ms` is a `uint32_t`, unlike the `int64_t` time aliases — it wraps after ~49.7 days. The interval gate is not affected by the wrap, but do not treat the field as a long-running absolute timestamp.
 
 ## Control (`ungula/core/control/`)
 
@@ -446,7 +522,20 @@ void loop() {
 
 `reset()` clears integral and derivative history. Call it after a setpoint jump, when the loop has been disabled, or after a hard-stop (limit switch, motor disabled) — any case where the carried error state is no longer meaningful.
 
-The derivative term stays at 0 on the first `update()` call (the `primed_` flag) so the first step doesn't produce a spurious spike.
+The derivative term stays at 0 on the first `update()` call so the first step doesn't produce a spurious spike.
+
+Gains can be retuned at runtime without rebuilding the controller:
+
+```cpp
+ungula::core::control::PidConfig tuned = pid.config();  // current gains
+tuned.kp = 1.4f;
+pid.setConfig(tuned);
+pid.reset();   // the integral survives setConfig() — clear it on a big jump
+```
+
+`integral()` exposes the accumulator if you want to log or display it.
+
+`dt_s` is **not validated**. Passing `0` divides by zero in the derivative term and the output becomes `inf`/`NaN`, which then propagates into whatever you drive. If your `dt_s` comes from a tick delta, guard it at the call site.
 
 ## Utilities
 
@@ -458,7 +547,7 @@ The derivative term stays at 0 on the first `update()` call (the `primed_` flag)
 uint32_t checksum = ungula::core::util::crc32(data, len);
 ```
 
-Standard polynomial `0xEDB88320`. No lookup table (saves RAM). See the Preferences section above for a real-world usage example.
+Standard polynomial `0xEDB88320`, init `0xFFFFFFFF`, final XOR `0xFFFFFFFF`. No lookup table (saves RAM, costs 8 shifts per byte). `crc32_byte(crc, byte)` is the streaming step function. See the Preferences section below for a real-world usage example.
 
 ### Queue (`ungula/core/util/queue.h`)
 
@@ -480,7 +569,13 @@ q.clear();
 
 ### String Utilities (`ungula/core/util/string_utils.h`)
 
-Namespace `ungula::core::util::str`. Manipulation helpers: `trim`, `to_lower`, `to_upper`, `startsWith`, `replaceAll`, `tokenizeByDelimiter`, `escapeString`, `countChar`, `num_to_string`.
+Namespace `ungula::core::util::str`. Everything is `inline`, header-only.
+
+- In place: `trim`, `to_lower`, `to_upper`, `trimWhitespace(char*, size_t&)`, `replaceAll`.
+- Returning a copy: `as_trim`, `as_lower`, `as_upper`, `escapeString`, `trimWhitespace(string_view_t)`, `skipWhitespace`, `skipWhitespaceView`.
+- Inspecting: `startsWith`, `countChar`, `countTokensByChar`, `string_indexOf`, `string_equals`.
+- Splitting/joining: `tokenizeByDelimiter`, `cleanDelimitedValues`, `string_substring`.
+- Numbers: `num_to_string<T>`, `num_to_stringf<T>(num, buf, size)`.
 
 ```cpp
 #include <ungula/core/util/string_utils.h>
@@ -493,7 +588,7 @@ auto parts = ungula::core::util::str::tokenizeByDelimiter("a,b,c", ',');
 
 ### String types (`ungula/core/util/string_types.h`)
 
-Project-wide aliases live in `ungula::core::util`: `string_t` (`std::string`), `string_view_t` (`std::string_view`), `vector_string_t`, `vector_string_view_t`. Code already inside `namespace ungula::core::util { ... }` finds them unqualified; everything else uses `ungula::core::util::string_t` etc.
+Project-wide aliases live in `ungula::core::util`: `string_t` (`std::string`), `string_view_t` (`std::string_view`), `vector_string_t` and `string_vector_t` (both `std::vector<string_t>` — same type, two spellings), `vector_string_view_t`. Code already inside `namespace ungula::core::util { ... }` finds them unqualified; everything else uses `ungula::core::util::string_t` etc.
 
 ### Temperature & Math (`ungula/core/util/types.h`)
 
@@ -504,7 +599,7 @@ Both nested under `ungula::core::util`.
 
 double f = ungula::core::util::temp::celsiusToFahrenheit(100.0);  // 212.0
 double c = ungula::core::util::temp::fahrenheitToCelsius(600.0);  // 315.56
-bool ok  = ungula::core::util::temp::isValidTemperature(300.0);   // true (finite && [-200, 1800))
+bool ok  = ungula::core::util::temp::isValidTemperature(300.0);   // true (finite && strictly inside -200 .. 1800)
 
 int16_t wire = ungula::core::util::temp::packCelsius(25.5f);   // 255 — wire format
 float recovered = ungula::core::util::temp::unpackCelsius(wire); // 25.5f
@@ -543,8 +638,11 @@ One implementation is currently provided:
 The facade currently resolves as follows:
 
 - `ESP_PLATFORM`, `ARDUINO_ARCH_ESP32`, or `ESP32` -> `Preferences = Esp32Preferences`
-- `STM32` or `ARDUINO_ARCH_STM32` -> explicit compile-time error (backend not implemented yet)
-- anything else -> explicit compile-time error (`no implementation selected`)
+- `STM32` or `ARDUINO_ARCH_STM32` -> explicit compile-time `#error` (backend not implemented yet)
+- anything else (typically a host gtest build) -> the `Preferences` alias is
+  simply **not defined**. Any attempt to instantiate it host-side fails with an
+  "undefined identifier" at the call site, which is the intent. `initStorage()`
+  is still declared and resolves to the host no-op at link time.
 
 Other implementations can be created under `ungula/core/preferences/platforms/` against the same interface, so your application code does not care which one is behind it.
 
@@ -695,6 +793,13 @@ void switchRecipe(int slot) {
 
 Each slot is stored as `[struct bytes][CRC32]`. On load, CRC is verified — corrupted slots are silently skipped. The store guarantees at least one valid program exists at all times (won't delete the last one).
 
+Two limits to keep in mind:
+
+- Slot keys are `"p<index>"` in a 4-byte buffer, so keep `MaxSlots` **≤ 100** — index 100 truncates to `"p10"` and collides with slot 10.
+- `activeIndex` / `lastUsedIndex` are persisted as `uint8_t`, with `255` reserved as the "no last-used slot" sentinel.
+
+`saveProgram()` returns `true` once the in-RAM slot is updated; it does not surface a failed storage write. Read the slot back if you need write confirmation.
+
 ### Config Store (Single Config)
 
 `NvsConfigStore<ConfigT>` stores one CRC-protected config struct in NVS under a single key.
@@ -793,12 +898,20 @@ cd lib/tests
 | Suite | What it covers |
 | --- | --- |
 | `CRC32` | Known values, empty input, single byte |
-| `Queue` | Push/pop, overflow, underflow, clear |
+| `Queue` | Push/pop, overflow, underflow, wrap-around, clear, move |
 | `StringUtils` | Trim, case, split, escape |
-| `Types` | Temperature conversion, math clamp/lerp |
+| `Types` | Temperature conversion and pack/unpack, math clamp/lerp, enum casts |
 | `PID` | Proportional, integral, derivative, anti-windup, reset |
+| `TimeControlTest` | Provider routing, timezone offsets, sync clock, `delayUntilMs`, formatters |
+| `TimezoneTableTest` | Offsets, abbreviations, enum/table drift |
+| `TimeFormatTest` | ISO-8601, custom specs, offsets, invalid inputs |
 | `NvsConfigStore` | Load/save, default fallback, CRC recovery self-heal |
 | `CounterStore` | Create-on-first-use, increment/reset, saturation, name limits, one write per increment, backend failure |
+| `PreferencesLayout` | `ProgramStore` smoke test, `IPreferences` stays abstract, host `initStorage()` |
+
+Tests build against the host backends (`time_control_host.h`,
+`host_preferences.cpp`), so anything ESP-only — `SystemControl`,
+`queryChipInfo()`, the FreeRTOS `delayUntil*` path — is not covered here.
 
 ## Acknowledgements
 
@@ -806,7 +919,7 @@ Thanks to Claude and ChatGPT for helping on generating this documentation.
 
 ## License
 
-MIT License — see [LICENSE](license.txt) file.
+MIT License — see the [LICENSE](LICENSE) file.
 
 ---
 
